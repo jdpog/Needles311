@@ -454,7 +454,7 @@ L.control.layers(baseMaps).addTo(map);
         let radiusCircle = L.circle([CENTER_LAT, CENTER_LNG], {
             color: '#3388ff',
             fillColor: '#3388ff',
-            fillOpacity: 0.1,
+            fillOpacity: 0.0,
             radius: RADIUS_METERS
         }).addTo(map);
 
@@ -543,7 +543,7 @@ L.control.layers(baseMaps).addTo(map);
                 document.getElementById('radiusValue').textContent = RADIUS_MILES.toFixed(2);
                 RADIUS_METERS = RADIUS_MILES * 1609.34;
                 radiusCircle.setRadius(RADIUS_METERS);
-                radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0.1 });
+                radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0.0 });
             }
             if (csvData && csvData.length > 0) {
                 processData(csvData);
