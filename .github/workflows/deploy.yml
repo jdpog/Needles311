@@ -1,26 +1,16 @@
-name: Deploy to surge
+name: deploy
 
-on:
-  push:
-    branches:
-      - main # Set a branch to deploy
+on: [push]
 
 jobs:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js 14.x
-      uses: actions/setup-node@v1
-      with:
-        node-version: 14.x
-    # Install dependencies
-    - name: Install dependencies
-      run: npm install
-    # Build the project
-    - name: Build
-      run: npm run build
-
-    # Deploy to surge
-    - name: Deploy
-      run: npm install --global surge
-      run: surge  ./build needles311.surge.sh --token f4b6726bd07a3b94a35a10276e301225
+  build:
+    runs-on: ubuntu-latest
+    name: Deploying to surge
+    
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm install -g surge
+      - run: surge ./ ${{ secrets.SURGE_DOMAIN }} --token ${{ secrets.SURGE_TOKEN }}
