@@ -5,16 +5,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.x"
-      - name: Install requests
+
+      - name: Install dependencies
         run: pip install requests
-      - name: Download API Data
-        run: python data\callAPI.py
-      - name: Upload JSON file
-        uses: actions/upload-artifact@v3
+
+      - name: Run API Data Download Script
+        run: callAPI.py
+
+      - name: Upload JSON file artifact
+        uses: actions/upload-artifact@v3.3.0
         with:
           name: reports-json
           path: reports.json
