@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 SERVICE_CODE = "Mayor's 24 Hour Hotline:Needle Program:Needle Pickup"
 API_ENDPOINT = "https://311.boston.gov/open311/v2/requests.json"
 PER_PAGE = 100  # maximum allowed per request
-SLEEP_SECONDS = 6  # to enforce fewer than 10 queries per minute
+SLEEP_SECONDS = 8  # to enforce fewer than 10 queries per minute
 
 HEADERS = {"User-Agent": "BostonNeedleReportsDownloader/1.0"}
 
