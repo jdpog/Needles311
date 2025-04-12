@@ -1,3 +1,5 @@
+on: [push]
+
 jobs:
   download_data:
     runs-on: ubuntu-latest
