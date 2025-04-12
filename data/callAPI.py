@@ -15,10 +15,19 @@ output_filename = "data/reports.json"
 with open(output_filename, "w") as outfile:
     json.dump(all_records, outfile, indent=2)
 print(f"Data successfully written to {output_filename}")
+
+#!/usr/bin/env python3
+import requests
+import time
+import json
+import sys
+from datetime import datetime, timedelta
+
+# API and query parameters
 SERVICE_CODE = "Mayor's 24 Hour Hotline:Needle Program:Needle Pickup"
 API_ENDPOINT = "https://311.boston.gov/open311/v2/requests.json"
 PER_PAGE = 100  # maximum allowed per request
-SLEEP_SECONDS = 8  # to enforce fewer than 10 queries per minute
+SLEEP_SECONDS = 6  # to enforce fewer than 10 queries per minute
 
 HEADERS = {"User-Agent": "BostonNeedleReportsDownloader/1.0"}
 
