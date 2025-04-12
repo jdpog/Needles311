@@ -1,11 +1,11 @@
-name: Deploy to Surge
+name: deploy
 
 on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Deploy to Surge
+    name: Deploying to surge
     
     steps:
       - uses: actions/checkout@v3
