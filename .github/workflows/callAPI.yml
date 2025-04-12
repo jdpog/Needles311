@@ -4,7 +4,11 @@ jobs:
   download_data:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          # Enable pushing changes back to the repo
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -17,8 +21,15 @@ jobs:
       - name: Run API Data Download Script
         run: python data/callAPI.py
 
-      - name: Upload JSON file artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: reports-json
-          path: reports.json
+      - name: Commit and Push Updated JSON File
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          # Check if the file has changes
+          git add data/reports.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update API data reports.json [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
