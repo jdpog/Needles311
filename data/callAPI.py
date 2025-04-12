@@ -13,7 +13,7 @@ os.makedirs("data", exist_ok=True)
 
 output_filename = "data/reports.json"
 with open(output_filename, "w") as outfile:
-    json.dump(all_reports, outfile, indent=2)
+    json.dump(all_records, outfile, indent=2)
 print(f"Data successfully written to {output_filename}")
 SERVICE_CODE = "Mayor's 24 Hour Hotline:Needle Program:Needle Pickup"
 API_ENDPOINT = "https://311.boston.gov/open311/v2/requests.json"
