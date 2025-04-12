@@ -15,7 +15,7 @@ jobs:
         run: pip install requests
 
       - name: Run API Data Download Script
-        run: data\callAPI.py
+        run: data/callAPI.py
 
       - name: Upload JSON file artifact
         uses: actions/upload-artifact@v4
