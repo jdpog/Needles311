@@ -75,10 +75,35 @@
             padding: 15px;
             overflow-y: visible;
         }
-		/* For all viewports, enable scrolling when content overflows */
-		#detailedReportInfo {
-		  overflow-y: auto;
+#detailedReportInfo {
+  display: flex;
+  flex-direction: column;
+  max-height: 500px; /* Adjust this value for desktop */
+  border: 1px solid #ccc;
+  margin-top: 10px;
 }
+
+/* Fixed header that stays at the top */
+#detailedHeader {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 10;  /* Ensures it stays above the scrolling list */
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+/* The list takes up remaining space and scrolls when overflowing */
+/* The critical min-height: 0 allows this element to shrink correctly */
+#detailedList {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+
+
         @media (max-width: 992px) {
             .page-container {
                 display: flex;
@@ -264,6 +289,9 @@
         .leaflet-marker-pane {
             will-change: transform;
         }
+		.leaflet-popup-content-wrapper {
+			max-width: 250px;
+			}
         body.animation-active .animation-controls {
             background-color: #e6f7ff;
         }
@@ -402,9 +430,10 @@
                 <div class="chart-container">
                     <canvas id="yearlyChart"></canvas>
                 </div>
-				<div id="detailedReportInfo" style="max-height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px; margin-top:10px;">
-  <p>Select a marker to see detailed report information.</p>
-</div>
+				<div id="detailedReportInfo">
+				  <div id="detailedHeader"></div>
+				  <div id="detailedList"></div>
+				</div>
             </div>
         </div>
         
@@ -1279,43 +1308,41 @@ L.control.layers(baseMaps).addTo(map);
         }
         
 		function updateDetailedInfoPanel(locationData) {
-		  console.log("Updating detailed info panel for location:", locationData);
-		  const detailElement = document.getElementById("detailedReportInfo");
-		  if (!detailElement) {
-			console.error("Element with ID 'detailedReportInfo' not found!");
-			return;
-		  }
+		  // Determine the header text: address (if available) or coordinates.
+		  const headerText = locationData.address 
+			  ? locationData.address 
+			  : (`Coordinates: ${locationData.lat}, ${locationData.lng}`);
 		  
-		  // Use the address if available; otherwise, use the coordinates.
-		  const header = locationData.address
-			  ? `<h4>${locationData.address}</h4>`
-			  : `<h4>Coordinates: ${locationData.lat}, ${locationData.lng}</h4>`;
+		  // Build header HTML.
+		  const headerHTML = `<h4 style="margin:0;">${headerText}</h4>`;
 		  
-		  let listContent = '';
-		  locationData.reports.forEach(report => {
-			// Build each report's content.
-			listContent += `<div style="margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:5px;">
+		  // Sort reports in reverse chronological order.
+		  const sortedReports = locationData.reports.slice().sort((a, b) => b.date - a.date);
+		  
+		  // Build the detailed report list.
+		  let listHTML = '';
+		  sortedReports.forEach(report => {
+			listHTML += `<div style="margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:5px;">
 				 <div><strong>${report.date.format('MMM D, YYYY h:mm A')}</strong></div>`;
 			if (report.data.description) {
-				 listContent += `<div>${report.data.description}</div>`;
+				 listHTML += `<div>${report.data.description}</div>`;
 			}
 			if (report.data.media_url && report.data.media_url.trim() !== "") {
-				 // Prepare the title for the full-size image popup.
-				 const reportTitle = locationData.address 
-					 ? (locationData.address + " - " + report.date.format('MMM D, YYYY h:mm A'))
-					 : ("Coordinates: " + locationData.lat + ", " + locationData.lng + " - " + report.date.format('MMM D, YYYY h:mm A'));
-				 listContent += `<div>
-				   <img src="${report.data.media_url}" alt="Media Image"
-						style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
-						onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(reportTitle)})'>
+				 // The onclick calls the full-screen image popup.
+				 // For the full-screen popup, pass the headerText and the formatted date.
+				 listHTML += `<div>
+				   <img src="${report.data.media_url}" alt="Media Image" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
+					onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(headerText)}, ${JSON.stringify(report.date.format("MMM D, YYYY h:mm A"))})'>
 				 </div>`;
 			}
-			listContent += `</div>`;
+			listHTML += `</div>`;
 		  });
 		  
-		  // Update the detailed info area content.
-		  detailElement.innerHTML = header + listContent;
+		  // Update the separate header and list sections.
+		  document.getElementById('detailedHeader').innerHTML = headerHTML;
+		  document.getElementById('detailedList').innerHTML = listHTML;
 		}
+
 		
         function visualizeDataAtDate(targetDate) {
             markersGroup.clearLayers();
@@ -1327,19 +1354,23 @@ L.control.layers(baseMaps).addTo(map);
 			  const relevantReports = locationData.reports.filter(report => report.date <= targetDate);
 			  if (relevantReports.length === 0) return;
 			  
-			  // Sort reports if needed.
+			  // Sort reports in ascending order to extract oldest and newest.
 			  relevantReports.sort((a, b) => a.date - b.date);
 			  const oldest = relevantReports[0].date;
 			  const newest = relevantReports[relevantReports.length - 1].date;
-
-			  // Build the summary popup content.
+			  
+			  // Use the location address if available; otherwise, use the coordinates.
+			  const headerText = locationData.address || (`Coordinates: ${locationData.lat}, ${locationData.lng}`);
+			  
+			  // Build the summary popup content including the header.
 			  const summaryContent = `<div>
+				  <h4 style="margin:0; font-size:1.1em;">${headerText}</h4>
 				  <strong>${relevantReports.length} needle report(s)</strong><br>
 				  Oldest: ${oldest.format('MMM D, YYYY h:mm A')}<br>
 				  Newest: ${newest.format('MMM D, YYYY h:mm A')}
 			  </div>`;
-
-			  // Create a circle marker (or use your marker creation method)
+			  
+			  // Create the marker.
 			  const circle = L.circleMarker([locationData.lat, locationData.lng], {
 				  radius: Math.min(60, Math.max(5, 5 + relevantReports.length * 1.5)),
 				  fillColor: '#e74c3c',
@@ -1349,19 +1380,18 @@ L.control.layers(baseMaps).addTo(map);
 				  fillOpacity: 1
 			  });
 			  
-			  // Bind the summary popup with auto-pan options.
+			  // Bind the summary popup.
 			  circle.bindPopup(summaryContent, {
-				autoPan: true,
+				autoPan: false,
 				autoPanPaddingTopLeft: L.point(10, 80),
 				autoPanPaddingBottomRight: L.point(10, 10)
 			  });
 			  
-			  // Also, add a click event to update the detailed info area.
+			  // When the marker is clicked, update the detailed info panel.
 			  circle.on('click', function() {
 				updateDetailedInfoPanel(locationData);
 			  });
 			  
-			  // Add marker to the markersGroup.
 			  markersGroup.addLayer(circle);
 			});
 
