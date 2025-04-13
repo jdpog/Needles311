@@ -1,13 +1,17 @@
-on: [push]
+name: Weekly API Data Update
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"  # Runs every Sunday at 00:00 UTC.
+  workflow_dispatch:
 
 jobs:
-  download_data:
+  update_data:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          # Enable pushing changes back to the repo
           persist-credentials: true
 
       - name: Set up Python
@@ -15,7 +19,7 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install dependencies
+      - name: Install Python Dependencies
         run: pip install requests
 
       - name: Run API Data Download Script
@@ -25,10 +29,9 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Check if the file has changes
           git add data/reports.json
           if ! git diff --cached --quiet; then
-            git commit -m "Update API data reports.json [skip ci]"
+            git commit -m "Update reports.json"
             git push
           else
             echo "No changes to commit."
