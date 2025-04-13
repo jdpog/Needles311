@@ -221,6 +221,12 @@
             margin-left: auto;
             padding: 5px 10px;
         }
+		
+		.settings-suboption {
+			margin-left: 20px; /* Adjust the indentation as needed */
+			font-size: 0.9em;  /* Optionally reduce font size */
+			padding: 4px 0;    /* Optional spacing adjustments */
+		}
         .chart-container {
             width: 100%;
             height: 200px;
@@ -362,6 +368,10 @@
                         <label for="toggleMarkers">Show Markers:</label>
                         <input type="checkbox" id="toggleMarkers" checked>
                     </div>
+					<div class="settings-suboption">
+						<label for="toggleMarkerGrouping">Group by Address:</label>
+						<input type="checkbox" id="toggleMarkerGrouping" checked>
+					</div>
                     <div id="geocodeStatus" style="margin-top: 5px; color: #666;"></div>
                 </div>
                 
@@ -768,14 +778,17 @@ L.control.layers(baseMaps).addTo(map);
 			markersGroup.clearLayers();
 			reportsByLocation.clear();
 			allReports = [];
+			
+			const groupByAddress = document.getElementById('toggleMarkerGrouping').checked;
+			let uniqueCounter = 0; // for non-grouped markers
 
 			// 1. Compute the global date range from the entire dataset.
 			if (!globalDateRangeSet) {
 				const globalDates = [];
 				data.forEach(row => {
-					if (row.open_dt) {
+					if (row.requested_datetime) {
 						// Parse the date without filtering out any rows due to location.
-						const dt = moment(row.open_dt, ['M/D/YYYY H:mm', 'M/D/YYYY h:mm']);
+						const dt = moment(row.requested_datetime);
 						if (dt.isValid()) {
 							globalDates.push(dt);
 						}
@@ -805,18 +818,25 @@ L.control.layers(baseMaps).addTo(map);
 			// 2. Process data for visualization using the current map radius.
 			// This block filters based on the location using isWithinRadius.
 			data.forEach(row => {
-				if (row.latitude && row.longitude && row.open_dt) {
-					const lat = parseFloat(row.latitude);
-					const lng = parseFloat(row.longitude);
-					// Use the isWithinRadius check to determine if the report should be drawn.
+				if (row.lat && row.long && row.requested_datetime) {
+					const lat = parseFloat(row.lat);
+					const lng = parseFloat(row.long);
 					if (!isNaN(lat) && !isNaN(lng) && isWithinRadius(lat, lng)) {
-						const date = moment(row.open_dt, ['M/D/YYYY H:mm', 'M/D/YYYY h:mm']);
+						const date = moment(row.requested_datetime);
 						if (date.isValid()) {
-							const locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+							// Use address-based grouping if enabled; otherwise, assign a unique key
+							let locationKey;
+							if (groupByAddress && row.address) {
+								locationKey = row.address.trim().toLowerCase();
+							} else {
+								locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
+							}
+
 							if (!reportsByLocation.has(locationKey)) {
 								reportsByLocation.set(locationKey, {
 									lat: lat,
 									lng: lng,
+									address: row.address || '',
 									reports: [],
 									latestDate: null
 								});
@@ -832,6 +852,7 @@ L.control.layers(baseMaps).addTo(map);
 					}
 				}
 			});
+
 
 			allReports.sort((a, b) => a.date - b.date);
 
@@ -924,7 +945,7 @@ L.control.layers(baseMaps).addTo(map);
                     sampleData.push({
                         latitude: (loc.lat + latVariation).toFixed(6),
                         longitude: (loc.lng + lngVariation).toFixed(6),
-                        open_dt: reportDate.format('M/D/YYYY h:mm'),
+                        requested_datetime: reportDate.format('M/D/YYYY h:mm'),
                         case_type: 'Needle Pickup',
                         case_status: status,
                         closure_reason: closureReason,
@@ -1255,8 +1276,8 @@ L.control.layers(baseMaps).addTo(map);
                         let weight = Math.max(0, 1 - (daysDiff / 365));
                         if (weight > 0) {
                             heatData.push([
-                                parseFloat(report.data.latitude),
-                                parseFloat(report.data.longitude),
+                                parseFloat(report.data.lat),
+                                parseFloat(report.data.long),
                                 weight
                             ]);
                         }
@@ -1314,6 +1335,12 @@ L.control.layers(baseMaps).addTo(map);
         document.getElementById('speedControl').addEventListener('change', function(e) {
             animationController.setSpeed(parseFloat(e.target.value));
         });
+		
+		document.getElementById('toggleMarkerGrouping').addEventListener('change', function() {
+			if (csvData && csvData.length > 0) {
+				processData(csvData);
+			}
+		});
         
         window.addEventListener('resize', function() {
             setTimeout(() => {
@@ -1325,19 +1352,18 @@ L.control.layers(baseMaps).addTo(map);
             map.invalidateSize();
         }, 100);
         
-        // Automatically load "needles_all.csv" on page load
-        Papa.parse("needles_all.csv", {
-            download: true,
-            header: true,
-            complete: function(results) {
-                csvData = results.data;
-                processData(csvData);
-            },
-            error: function(error) {
-                console.error('Error parsing CSV:', error);
-                alert('Error loading needles_all.csv. Please check the file and try again.');
-            }
-        });
+// Instead of automatically loading the CSV file, load the JSON file:
+fetch('data/reports.json')
+    .then(response => response.json())
+    .then(data => {
+        csvData = data;
+        processData(csvData);
+    })
+    .catch(error => {
+        console.error('Error loading reports.json:', error);
+        alert('Error loading reports.json. Please check the file and try again.');
+    });
+
     </script>
 </body>
 </html>
