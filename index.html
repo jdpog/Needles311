@@ -73,8 +73,12 @@
             grid-area: info;
             background-color: #f0f8ff;
             padding: 15px;
-            overflow-y: auto;
+            overflow-y: visible;
         }
+		/* For all viewports, enable scrolling when content overflows */
+		#detailedReportInfo {
+		  overflow-y: auto;
+}
         @media (max-width: 992px) {
             .page-container {
                 display: flex;
@@ -318,6 +322,9 @@
         font-size: 0.7rem; /* adjust font size as needed */
 		text-align: center;
     }
+	#detailedReportInfo {
+		max-height: 300px;
+	}
 }
     </style>
 </head>
@@ -395,6 +402,9 @@
                 <div class="chart-container">
                     <canvas id="yearlyChart"></canvas>
                 </div>
+				<div id="detailedReportInfo" style="max-height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px; margin-top:10px;">
+  <p>Select a marker to see detailed report information.</p>
+</div>
             </div>
         </div>
         
@@ -772,6 +782,86 @@ L.control.layers(baseMaps).addTo(map);
                 }
             });
         }
+
+			function showFullSizeImage(mediaUrl, description, titleText) {
+			  // Create an overlay covering the entire viewport
+			  var overlay = document.createElement("div");
+			  overlay.id = "imageOverlay";
+			  overlay.style.position = "fixed";
+			  overlay.style.top = 0;
+			  overlay.style.left = 0;
+			  overlay.style.width = "100%";
+			  overlay.style.height = "100%";
+			  overlay.style.backgroundColor = "rgba(0,0,0,0.8)";
+			  overlay.style.display = "flex";
+			  overlay.style.justifyContent = "center";
+			  overlay.style.alignItems = "center";
+			  overlay.style.zIndex = 10000;
+
+			  // Create a container for the popup content
+			  var container = document.createElement("div");
+			  container.style.position = "relative";
+			  container.style.backgroundColor = "#fff";
+			  container.style.padding = "15px";
+			  container.style.maxWidth = "90vw";
+			  container.style.maxHeight = "90vh";
+			  container.style.overflow = "auto";
+			  container.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
+			  
+			  // Create a title element (includes address or coordinates and date/time)
+			  var titleEl = document.createElement("h2");
+			  titleEl.style.marginTop = "0";
+			  titleEl.style.fontSize = "1.2em";
+			  titleEl.textContent = titleText;
+			  container.appendChild(titleEl);
+
+			  // Create the full-size image element
+			  var imgEl = document.createElement("img");
+			  imgEl.src = mediaUrl;
+			  imgEl.style.width = "100%";
+			  imgEl.style.height = "auto";
+			  imgEl.style.display = "block";
+			  imgEl.style.margin = "10px 0";
+			  container.appendChild(imgEl);
+
+			  // Create the caption element (the description)
+			  var captionEl = document.createElement("p");
+			  captionEl.style.fontSize = "1em";
+			  captionEl.style.color = "#333";
+			  captionEl.textContent = description || "";
+			  container.appendChild(captionEl);
+
+			  // Create a close button (×)
+			  var closeButton = document.createElement("span");
+			  closeButton.textContent = "\u00D7";
+			  closeButton.style.position = "absolute";
+			  closeButton.style.top = "10px";
+			  closeButton.style.right = "15px";
+			  closeButton.style.fontSize = "1.5em";
+			  closeButton.style.cursor = "pointer";
+			  closeButton.style.color = "#333";
+			  container.appendChild(closeButton);
+
+			  // Append the container to the overlay and the overlay to the document
+			  overlay.appendChild(container);
+			  document.body.appendChild(overlay);
+
+			  // Function to remove the overlay
+			  function removeOverlay() {
+				if (document.body.contains(overlay)) {
+				  document.body.removeChild(overlay);
+				}
+			  }
+
+			  // Close when the close button is clicked
+			  closeButton.addEventListener("click", removeOverlay);
+			  // Also close if the user clicks outside the container
+			  overlay.addEventListener("click", function (e) {
+				if (e.target === overlay) {
+				  removeOverlay();
+				}
+			  });
+			}
 
         function processData(data) {
 			// Clear previously rendered layers and reports
@@ -1186,68 +1276,93 @@ L.control.layers(baseMaps).addTo(map);
             yearlyReportsChart.update('none');
         }
         
+		function updateDetailedInfoPanel(locationData) {
+		  console.log("Updating detailed info panel for location:", locationData);
+		  const detailElement = document.getElementById("detailedReportInfo");
+		  if (!detailElement) {
+			console.error("Element with ID 'detailedReportInfo' not found!");
+			return;
+		  }
+		  
+		  // Use the address if available; otherwise, use the coordinates.
+		  const header = locationData.address
+			  ? `<h4>${locationData.address}</h4>`
+			  : `<h4>Coordinates: ${locationData.lat}, ${locationData.lng}</h4>`;
+		  
+		  let listContent = '';
+		  locationData.reports.forEach(report => {
+			// Build each report's content.
+			listContent += `<div style="margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:5px;">
+				 <div><strong>${report.date.format('MMM D, YYYY h:mm A')}</strong></div>`;
+			if (report.data.description) {
+				 listContent += `<div>${report.data.description}</div>`;
+			}
+			if (report.data.media_url && report.data.media_url.trim() !== "") {
+				 // Prepare the title for the full-size image popup.
+				 const reportTitle = locationData.address 
+					 ? (locationData.address + " - " + report.date.format('MMM D, YYYY h:mm A'))
+					 : ("Coordinates: " + locationData.lat + ", " + locationData.lng + " - " + report.date.format('MMM D, YYYY h:mm A'));
+				 listContent += `<div>
+				   <img src="${report.data.media_url}" alt="Media Image"
+						style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
+						onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(reportTitle)})'>
+				 </div>`;
+			}
+			listContent += `</div>`;
+		  });
+		  
+		  // Update the detailed info area content.
+		  detailElement.innerHTML = header + listContent;
+		}
+		
         function visualizeDataAtDate(targetDate) {
             markersGroup.clearLayers();
             let activeLocationCount = 0;
             let recentReportCount = 0;
             let totalReportCount = 0;
-            reportsByLocation.forEach((locationData, locationKey) => {
-                const relevantReports = locationData.reports.filter(report => 
-                    report.date <= targetDate
-                );
-                if (relevantReports.length === 0) return;
-                if (!animationController.isPlaying) {
-                    relevantReports.sort((a, b) => a.date - b.date);
-                }
-                const latestReportDate = relevantReports[relevantReports.length - 1].date;
-                const isActive = targetDate.diff(latestReportDate, 'months', true) <= 12;
-                if (isActive) activeLocationCount++;
-                const recentLocationReports = relevantReports.filter(report => 
-                    targetDate.diff(report.date, 'days', true) <= 30
-                ).length;
-                recentReportCount += recentLocationReports;
-                totalReportCount += relevantReports.length;
-                const radius = Math.min(60, Math.max(5, 5 + relevantReports.length * 1.5));
-                const monthsSinceLatest = targetDate.diff(latestReportDate, 'months', true);
-                const opacity = Math.max(0.2, 1 - (monthsSinceLatest / 12));
-                const circle = L.circleMarker([locationData.lat, locationData.lng], {
-                    radius: radius,
-                    fillColor: '#e74c3c',
-                    color: '#c0392b',
-                    weight: 1,
-                    opacity: opacity,
-                    fillOpacity: opacity
-                });
-                if (!animationController.isPlaying) {
-                    let popupContent = `<b>${relevantReports.length} needle report(s)</b><br>
-                                   Latest: ${latestReportDate.format('MMM D, YYYY')}<br>
-                                   First: ${relevantReports[0].date.format('MMM D, YYYY')}<br><br>`;
-                    const displayReports = relevantReports.length > 5 ? 
-                        [...relevantReports.slice(-5).reverse()] :
-                        [...relevantReports.reverse()];
-                    displayReports.forEach(report => {
-                        popupContent += `<div style="margin-bottom:5px; border-bottom:1px solid #eee; padding-bottom:5px;">
-                                        <b>${report.date.format('MMM D, YYYY h:mm A')}</b><br>`;
-                        if (report.data.case_status) {
-                            popupContent += `Status: ${report.data.case_status}<br>`;
-                        }
-                        if (report.data.closure_reason) {
-                            popupContent += `Closure: ${report.data.closure_reason}<br>`;
-                        }
-                        if (report.data.neighborhood) {
-                            popupContent += `Neighborhood: ${report.data.neighborhood}<br>`;
-                        }
-                        popupContent += `</div>`;
-                    });
-                    if (relevantReports.length > 5) {
-                        popupContent += `<i>And ${relevantReports.length - 5} more reports...</i>`;
-                    }
-                    circle.bindPopup(popupContent);
-                } else {
-                    circle.bindPopup(`${relevantReports.length} needle reports here`);
-                }
-                markersGroup.addLayer(circle);
-            });
+// Inside your visualizeDataAtDate function for each locationData:
+			reportsByLocation.forEach((locationData, locationKey) => {
+			  const relevantReports = locationData.reports.filter(report => report.date <= targetDate);
+			  if (relevantReports.length === 0) return;
+			  
+			  // Sort reports if needed.
+			  relevantReports.sort((a, b) => a.date - b.date);
+			  const oldest = relevantReports[0].date;
+			  const newest = relevantReports[relevantReports.length - 1].date;
+
+			  // Build the summary popup content.
+			  const summaryContent = `<div>
+				  <strong>${relevantReports.length} needle report(s)</strong><br>
+				  Oldest: ${oldest.format('MMM D, YYYY h:mm A')}<br>
+				  Newest: ${newest.format('MMM D, YYYY h:mm A')}
+			  </div>`;
+
+			  // Create a circle marker (or use your marker creation method)
+			  const circle = L.circleMarker([locationData.lat, locationData.lng], {
+				  radius: Math.min(60, Math.max(5, 5 + relevantReports.length * 1.5)),
+				  fillColor: '#e74c3c',
+				  color: '#c0392b',
+				  weight: 1,
+				  opacity: 1,
+				  fillOpacity: 1
+			  });
+			  
+			  // Bind the summary popup with auto-pan options.
+			  circle.bindPopup(summaryContent, {
+				autoPan: true,
+				autoPanPaddingTopLeft: L.point(10, 80),
+				autoPanPaddingBottomRight: L.point(10, 10)
+			  });
+			  
+			  // Also, add a click event to update the detailed info area.
+			  circle.on('click', function() {
+				updateDetailedInfoPanel(locationData);
+			  });
+			  
+			  // Add marker to the markersGroup.
+			  markersGroup.addLayer(circle);
+			});
+
 
             document.getElementById('totalReports').textContent = totalReportCount;
             document.getElementById('activeLocations').textContent = activeLocationCount;
