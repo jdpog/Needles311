@@ -1370,14 +1370,17 @@ L.control.layers(baseMaps).addTo(map);
 				  Newest: ${newest.format('MMM D, YYYY h:mm A')}
 			  </div>`;
 			  
+			  // Compute fade factor.
+			  const monthsSinceNewest = targetDate.diff(newest, 'months', true);
+			  const opacityFactor = Math.max(0.2, 1 - (monthsSinceNewest / 12));
 			  // Create the marker.
 			  const circle = L.circleMarker([locationData.lat, locationData.lng], {
 				  radius: Math.min(60, Math.max(5, 5 + relevantReports.length * 1.5)),
 				  fillColor: '#e74c3c',
 				  color: '#c0392b',
 				  weight: 1,
-				  opacity: 1,
-				  fillOpacity: 1
+				  opacity: opacityFactor,
+					fillOpacity: opacityFactor
 			  });
 			  
 			  // Bind the summary popup.
