@@ -1,8 +1,9 @@
-name: Weekly API Data Update
+name: Daily API Data Update
 
 on:
   schedule:
-    - cron: "0 0 * * 0"  # Runs every Sunday at 00:00 UTC.
+    # This cron expression schedules the workflow to run once per day at 00:00 UTC.
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
