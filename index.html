@@ -819,7 +819,9 @@ L.control.layers(baseMaps).addTo(map);
 			  var imgEl = document.createElement("img");
 			  imgEl.src = mediaUrl;
 			  imgEl.style.width = "100%";
-			  imgEl.style.height = "auto";
+			  // Limit the image height so the overall container stays within 90vh.
+				imgEl.style.maxHeight = "calc(90vh - 150px)"; // 150px accounts for header, caption, padding, etc.
+				imgEl.style.objectFit = "contain"; // Scale down without distortion.
 			  imgEl.style.display = "block";
 			  imgEl.style.margin = "10px 0";
 			  container.appendChild(imgEl);
