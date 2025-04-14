@@ -1282,39 +1282,38 @@ L.control.layers(baseMaps).addTo(map);
         }
         
 		function updateDetailedInfoPanel(locationData) {
-		  // Determine the header text: address (if available) or coordinates.
-		  const headerText = locationData.address 
-			  ? locationData.address 
-			  : (`Coordinates: ${locationData.lat}, ${locationData.lng}`);
-		  
-		  // Build header HTML.
-		  const headerHTML = `<h4 style="margin:0;">${headerText}</h4>`;
-		  
-		  // Sort reports in reverse chronological order.
-		  const sortedReports = locationData.reports.slice().sort((a, b) => b.date - a.date);
-		  
-		  // Build the detailed report list.
-		  let listHTML = '';
-		  sortedReports.forEach(report => {
-			listHTML += `<div style="margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:5px;">
-				 <div><strong>${report.date.format('MMM D, YYYY h:mm A')}</strong></div>`;
-			if (report.data.description) {
-				 listHTML += `<div>${report.data.description}</div>`;
-			}
-			if (report.data.media_url && report.data.media_url.trim() !== "") {
-				 // The onclick calls the full-screen image popup.
-				 // For the full-screen popup, pass the headerText and the formatted date.
-				 listHTML += `<div>
-				   <img src="${report.data.media_url}" alt="Media Image" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
-					onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(headerText)}, ${JSON.stringify(report.date.format("MMM D, YYYY h:mm A"))})'>
-				 </div>`;
-			}
-			listHTML += `</div>`;
-		  });
-		  
-		  // Update the separate header and list sections.
-		  document.getElementById('detailedHeader').innerHTML = headerHTML;
-		  document.getElementById('detailedList').innerHTML = listHTML;
+			// Determine the header text: address (if available) or coordinates.
+			const headerText = locationData.address
+				? locationData.address
+				: (`Coordinates: ${locationData.lat}, ${locationData.lng}`);
+
+			// Build header HTML, including total reports.
+			const headerHTML = `<h4 style="margin:0;">${headerText}</h4>
+								<p>Total Reports: ${locationData.reports.length}</p>`;
+
+			// Sort reports in reverse chronological order.
+			const sortedReports = locationData.reports.slice().sort((a, b) => b.date - a.date);
+
+			// Build the detailed report list.
+			let listHTML = '';
+			sortedReports.forEach(report => {
+				listHTML += `<div style="margin-bottom:10px; border-bottom:1px solid #ddd; padding-bottom:5px;">
+					 <div><strong>${report.date.format('MMM D, YYYY h:mm A')}</strong></div>`;
+				if (report.data.description) {
+					listHTML += `<div>${report.data.description}</div>`;
+				}
+				if (report.data.media_url && report.data.media_url.trim() !== "") {
+					// The onclick calls the full-screen image popup.
+					// For the full-screen popup, pass the headerText and the formatted date.
+					listHTML += `<div>
+					   <img src="${report.data.media_url}" alt="Media Image" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
+						onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(headerText)}, ${JSON.stringify(report.date.format("MMM D, YYYY h:mm A"))})'>
+					 </div>`;
+				}
+				listHTML += `</div>`;
+			});
+
+			return `<div style="max-height: 300px; overflow-y: auto;">${headerHTML}${listHTML}</div>`;
 		}
 
 		
@@ -1364,10 +1363,10 @@ L.control.layers(baseMaps).addTo(map);
 				autoPanPaddingBottomRight: L.point(10, 10)
 			  });
 			  
-			  // When the marker is clicked, update the detailed info panel.
-			  circle.on('click', function() {
-				updateDetailedInfoPanel(locationData);
-			  });
+				circle.on('click', function() {
+					const detailedContent = updateDetailedInfoPanel(locationData); // Get detailed HTML
+					circle.setPopupContent(detailedContent); // Set popup content
+				});
 			  
 			  markersGroup.addLayer(circle);
 			});
