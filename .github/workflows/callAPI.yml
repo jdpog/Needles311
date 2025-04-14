@@ -31,7 +31,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           # Pull remote changes and rebase your changes on top.
-          git pull --rebase
+          git pull --rebase --autostash
           git add data/reports.json
           if ! git diff --cached --quiet; then
             git commit -m "Update reports.json [skip ci]"
