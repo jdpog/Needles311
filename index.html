@@ -1320,7 +1320,7 @@ L.control.layers(baseMaps).addTo(map);
 					// For the full-screen popup, pass the headerText and the formatted date.
 					listHTML += `<div>
 					   <img src="${report.data.media_url}" alt="Media Image" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
-						onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(headerText)}, ${JSON.stringify(report.date.format("MMM D, YYYY h:mm A"))})'>
+						onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(headerText)} + " - " + ${JSON.stringify(report.date.format("MMM D, YYYY h:mm A"))})'>
 					 </div>`;
 				}
 				listHTML += `</div>`;
