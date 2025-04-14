@@ -17,344 +17,343 @@
     <!-- Add Leaflet.heat for heatmap functionality -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
     <style>
-        /* (Existing styles remain unchanged) */
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: Arial, sans-serif;
-            overflow-x: hidden;
-        }
+    /* (Existing styles remain unchanged) */
+    body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: Arial, sans-serif;
+        overflow-x: hidden;
+    }
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas: 
+            "settings"
+            "content"
+            "controls";
+        height: 100vh;
+        max-height: 100vh; /* This is important to prevent overall overflow */
+        overflow: hidden;
+    }
+    .settings-section {
+        grid-area: settings;
+        background-color: #f5f5f5;
+        padding: 10px;
+        overflow-y: auto;
+        max-height: 30vh;
+    }
+    .content-section {
+        grid-area: content;
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        grid-template-areas: "map info";
+        height: 100%;
+        overflow: hidden;
+        /* max-height: calc(100vh - height of settings - height of controls); */
+    }
+    .controls-section {
+        grid-area: controls;
+        background-color: #f9f9f9;
+        padding: 10px;
+    }
+    .map-container {
+        grid-area: map;
+        position: relative;
+        height: 100%;
+        width: 100%;
+    }
+    #map {
+        height: 100%;
+        width: 100%;
+        contain: strict;
+        will-change: transform;
+    }
+    .info-panel {
+        grid-area: info;
+        background-color: #f0f8ff;
+        padding: 15px;
+        padding-bottom: 60px;
+        display: flex;
+        flex-direction: column;
+    }
+    #detailedReportInfo {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ccc;
+        margin-top: 10px;
+        flex: 1 1 auto;
+    }
+
+    /* Fixed header that stays at the top */
+    #detailedHeader {
+        flex: 0 0 auto;
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 10;  /* Ensures it stays above the scrolling list */
+        padding: 10px;
+        border-bottom: 1px solid #ccc;
+    }
+
+    /* The list takes up remaining space and scrolls when overflowing */
+    /* The critical min-height: 0 allows this element to shrink correctly */
+    #detailedList {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        min-height: 0;
+        max-height: 100%;
+    }
+
+
+    @media (max-width: 992px) {
         .page-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-template-rows: auto 1fr auto;
-            grid-template-areas: 
-                "settings"
-                "content"
-                "controls";
+            display: flex;
+            flex-direction: column;
             height: 100vh;
-            max-height: 100vh;
-            overflow: hidden;
+            overflow: auto;
         }
         .settings-section {
-            grid-area: settings;
-            background-color: #f5f5f5;
-            padding: 10px;
-            overflow-y: auto;
-            max-height: 30vh;
-        }
-        .content-section {
-            grid-area: content;
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            grid-template-areas: "map info";
-            height: 100%;
-            overflow: hidden;
-        }
-        .controls-section {
-            grid-area: controls;
-            background-color: #f9f9f9;
-            padding: 10px;
-        }
-        .map-container {
-            grid-area: map;
-            position: relative;
-            height: 100%;
-            width: 100%;
-        }
-        #map {
-            height: 100%;
-            width: 100%;
-            contain: strict;
-            will-change: transform;
-        }
-        .info-panel {
-            grid-area: info;
-            background-color: #f0f8ff;
-            padding: 15px;
+            order: 1;
+            max-height: none;
             overflow-y: visible;
         }
-#detailedReportInfo {
-  display: flex;
-  flex-direction: column;
-  max-height: 500px; /* Adjust this value for desktop */
-  border: 1px solid #ccc;
-  margin-top: 10px;
-}
-
-/* Fixed header that stays at the top */
-#detailedHeader {
-  flex: 0 0 auto;
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 10;  /* Ensures it stays above the scrolling list */
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
-}
-
-/* The list takes up remaining space and scrolls when overflowing */
-/* The critical min-height: 0 allows this element to shrink correctly */
-#detailedList {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-
-
-        @media (max-width: 992px) {
-            .page-container {
-                display: flex;
-                flex-direction: column;
-                height: 100vh;
-                overflow: auto;
-            }
-            .settings-section {
-                order: 1;
-                max-height: none;
-                overflow-y: visible;
-            }
-            .map-settings {
-                order: 0;
-                margin-top: 0;
-                margin-bottom: 15px;
-                background-color: #e9f7ff;
-                border-radius: 5px;
-            }
-            .map-container {
-                order: 2;
-                height: 50vh;
-                min-height: 300px;
-            }
-            .controls-section {
-                order: 3;
-            }
-            .info-panel {
-                order: 4;
-                max-height: none;
-                display: flex;
-                flex-direction: column;
-            }
-            .content-section {
-                display: contents;
-            }
-            <!-- .settings-row {
-                flex-wrap: wrap;
-                gap: 5px;
-                margin-bottom: 5px;
-            } -->
-            .settings-row label {
-                width: auto;
-                min-width: 120px;
-            }
-            #addressInput {
-                width: 100% !important;
-                margin-bottom: 5px;
-            }
-            #searchAddress {
-                margin-left: 0;
-            }
-			.legend {
-				transform: scale(0.6);
-				transform-origin: bottom right;
-			}
-			
-        }
-		
-        .controls {
-            padding: 10px;
-            background-color: #f5f5f5;
-        }
-        .legend {
-            padding: 6px 8px;
-            background: white;
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        .map-settings {
+            order: 0;
+            margin-top: 0;
+            margin-bottom: 15px;
+            background-color: #e9f7ff;
             border-radius: 5px;
-            line-height: 24px;
-            color: #555;
-			
         }
-        .legend i {
-            width: 18px;
-            height: 18px;
-            float: left;
-            margin-right: 8px;
-            opacity: 0.7;
+        .map-container {
+            order: 2;
+            height: 50vh;
+            min-height: 300px;
         }
-        .info {
-            padding: 10px;
-            background-color: #e3f2fd;
-            margin-bottom: 10px;
-            border-radius: 4px;
+        .controls-section {
+            order: 3;
         }
-        .animation-controls {
-            margin-top: 0;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
+        .info-panel {
+            order: 4;
+            max-height: none;
             display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
         }
-        .animation-controls button {
-            padding: 5px 5px;
-            cursor: pointer;
-        }
-        .time-slider-container {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            gap: 0px;
-			width: 100%;
-        }
-        #timeSlider {
-            flex-grow: 1;
-        }
-        .date-display {
-            width: 150px;
-            text-align: center;
-            font-weight: bold;
-			overflow: hidden;
-			white-space: nowrap;
-        }
-        .speed-control {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .settings-panel {
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 4px;
-        }
-        .settings-panel h3 {
-            margin-top: 0;
-        }
-        .settings-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+        .content-section {
+            display: contents;
         }
         .settings-row label {
-            width: 150px;
+            width: auto;
+            min-width: 120px;
         }
-        .settings-row input[type="number"] {
-            width: 100px;
+        #addressInput {
+            width: 100% !important;
+            margin-bottom: 5px;
         }
-        .settings-row button {
-            margin-left: auto;
-            padding: 5px 10px;
+        #searchAddress {
+            margin-left: 0;
         }
-		
-		.settings-suboption {
-			margin-left: 20px; /* Adjust the indentation as needed */
-			font-size: 0.9em;  /* Optionally reduce font size */
-			padding: 4px 0;    /* Optional spacing adjustments */
-		}
-        .chart-container {
-            width: 100%;
-            height: 200px;
-            position: relative;
+        .legend {
+            transform: scale(0.6);
+            transform-origin: bottom right;
         }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-        .stat-card {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .stat-card p {
-            margin: 5px 0;
-        }
-        body.animation-active {
-            pointer-events: none;
-        }
-        body.animation-active .animation-controls,
-        body.animation-active .settings-panel {
-            pointer-events: auto;
-        }
-        .leaflet-tile-container {
-            will-change: transform;
-        }
-        .leaflet-marker-pane {
-            will-change: transform;
-        }
-		.leaflet-popup-content-wrapper {
-			max-width: 250px;
-			}
-        body.animation-active .animation-controls {
-            background-color: #e6f7ff;
-        }
-		
-		/* Dark mode overall text and background, if not already defined */
-		body.dark-mode {
-		  background-color: #222;
-		  color: #ddd;
-		}
 
-		/* Override the settings section */
-		body.dark-mode .settings-section {
-		  background-color: #333 !important;
-		  color: #ddd !important;
-		}
+    }
 
-		/* Override the controls section */
-		body.dark-mode .controls-section {
-		  background-color: #2a2a2a !important;
-		  color: #ddd !important;
-		}
+    .controls {
+        padding: 10px;
+        background-color: #f5f5f5;
+    }
+    .legend {
+        padding: 6px 8px;
+        background: white;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        border-radius: 5px;
+        line-height: 24px;
+        color: #555;
 
-		/* Override the info panel (which contains statistics and map settings) */
-		body.dark-mode .info-panel {
-		  background-color: #3a3a3a !important;
-		  color: #ddd !important;
-		}
+    }
+    .legend i {
+        width: 18px;
+        height: 18px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
+    }
+    .info {
+        padding: 10px;
+        background-color: #e3f2fd;
+        margin-bottom: 10px;
+        border-radius: 4px;
+    }
+    .animation-controls {
+        margin-top: 0;
+        padding: 10px;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+    .animation-controls button {
+        padding: 5px 5px;
+        cursor: pointer;
+    }
+    .time-slider-container {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        gap: 0px;
+        width: 100%;
+    }
+    #timeSlider {
+        flex-grow: 1;
+    }
+    .date-display {
+        width: 150px;
+        text-align: center;
+        font-weight: bold;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    .speed-control {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .settings-panel {
+        padding: 10px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+    }
+    .settings-panel h3 {
+        margin-top: 0;
+    }
+    .settings-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    .settings-row label {
+        width: 150px;
+    }
+    .settings-row input[type="number"] {
+        width: 100px;
+    }
+    .settings-row button {
+        margin-left: auto;
+        padding: 5px 10px;
+    }
 
-		/* Optionally, adjust any inner panels like the map-settings panel */
-		body.dark-mode .settings-panel.map-settings {
-		  background-color: #333 !important;
-		  border-color: #555;
-		}
+    .settings-suboption {
+        margin-left: 20px; /* Adjust the indentation as needed */
+        font-size: 0.9em;  /* Optionally reduce font size */
+        padding: 4px 0;    /* Optional spacing adjustments */
+    }
+    .chart-container {
+        width: 100%;
+        height: 200px;
+        position: relative;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+    .stat-card {
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-card p {
+        margin: 5px 0;
+    }
+    body.animation-active {
+        pointer-events: none;
+    }
+    body.animation-active .animation-controls,
+    body.animation-active .settings-panel {
+        pointer-events: auto;
+    }
+    .leaflet-tile-container {
+        will-change: transform;
+    }
+    .leaflet-marker-pane {
+        will-change: transform;
+    }
+    .leaflet-popup-content-wrapper {
+        max-width: 250px;
+    }
+    body.animation-active .animation-controls {
+        background-color: #e6f7ff;
+    }
 
-		/* Update stat cards and other nested elements, if needed */
-		body.dark-mode .stat-card {
-		  background-color: #444 !important;
-		  border-color: #555;
-		  color: #ddd !important;
-		}
+    /* Dark mode overall text and background, if not already defined */
+    body.dark-mode {
+      background-color: #222;
+      color: #ddd;
+    }
 
-		/* And the controls inside the animation area */
-		body.dark-mode .animation-controls {
-		  background-color: #2a2a2a !important;
-		  color: #ddd !important;
-		}
-		
+    /* Override the settings section */
+    body.dark-mode .settings-section {
+      background-color: #333 !important;
+      color: #ddd !important;
+    }
+
+    /* Override the controls section */
+    body.dark-mode .controls-section {
+      background-color: #2a2a2a !important;
+      color: #ddd !important;
+    }
+
+    /* Override the info panel (which contains statistics and map settings) */
+    body.dark-mode .info-panel {
+      background-color: #3a3a3a !important;
+      color: #ddd !important;
+    }
+
+    /* Optionally, adjust any inner panels like the map-settings panel */
+    body.dark-mode .settings-panel.map-settings {
+      background-color: #333 !important;
+      border-color: #555;
+    }
+
+    /* Update stat cards and other nested elements, if needed */
+    body.dark-mode .stat-card {
+      background-color: #444 !important;
+      border-color: #555;
+      color: #ddd !important;
+    }
+
+    /* And the controls inside the animation area */
+    body.dark-mode .animation-controls {
+      background-color: #2a2a2a !important;
+      color: #ddd !important;
+    }
+
 @media (max-width: 600px) {
     .stats-grid {
         grid-template-columns: repeat(3, 1fr);
         gap: 3px; /* tighter gap on mobile */
     }
-    
+
     .stat-card {
         padding: 3px;      /* reduce padding */
         font-size: 0.7rem; /* adjust font size as needed */
-		text-align: center;
+        text-align: center;
     }
-	#detailedReportInfo {
-		max-height: 300px;
-	}
+    #detailedReportInfo {
+        max-height: 300px;
+    }
 }
-    </style>
+</style>
+
 </head>
 <body>
     <div class="page-container">
@@ -988,6 +987,34 @@ L.control.layers(baseMaps).addTo(map);
 
 
 
+
+    // ... (Your existing JavaScript code)
+
+    function adjustDetailedInfoHeight() {
+        const infoPanel = document.querySelector('.info-panel');
+        const mapSettings = document.querySelector('.settings-panel.map-settings');
+        const statsGrid = document.querySelector('.stats-grid');
+        const chartContainer = document.querySelector('.chart-container');
+        const detailedInfo = document.getElementById('detailedReportInfo');
+
+        // Calculate the height of the other elements
+        let otherElementsHeight = 0;
+        if (mapSettings) otherElementsHeight += mapSettings.offsetHeight + 10; // Add margin
+        if (statsGrid) otherElementsHeight += statsGrid.offsetHeight + 10;
+        if (chartContainer) otherElementsHeight += chartContainer.offsetHeight + 10;
+
+        // Calculate the available height for detailedReportInfo
+        const availableHeight = infoPanel.offsetHeight - otherElementsHeight - 30; // Subtract padding
+
+        // Set the max-height of detailedReportInfo
+        detailedInfo.style.maxHeight = `${availableHeight}px`;
+    }
+
+    // Call this function on initial load and whenever the window resizes
+    window.addEventListener('load', adjustDetailedInfoHeight);
+    window.addEventListener('resize', adjustDetailedInfoHeight);
+
+    // ... (Rest of your JavaScript code)
 
 
        function addLegend() {
