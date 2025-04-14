@@ -81,34 +81,7 @@
         display: flex;
         flex-direction: column;
     }
-    #detailedReportInfo {
-        display: flex;
-        flex-direction: column;
-        border: 1px solid #ccc;
-        margin-top: 10px;
-        flex: 1 1 auto;
-    }
-
-    /* Fixed header that stays at the top */
-    #detailedHeader {
-        flex: 0 0 auto;
-        position: sticky;
-        top: 0;
-        background: #fff;
-        z-index: 10;  /* Ensures it stays above the scrolling list */
-        padding: 10px;
-        border-bottom: 1px solid #ccc;
-    }
-
-    /* The list takes up remaining space and scrolls when overflowing */
-    /* The critical min-height: 0 allows this element to shrink correctly */
-    #detailedList {
-        flex: 1 1 auto;
-        overflow-y: scroll;
-        min-height: 0;
-        max-height: 70%;
-    }
-
+    
 
     @media (max-width: 992px) {
         .page-container {
@@ -351,9 +324,7 @@
         font-size: 0.7rem; /* adjust font size as needed */
         text-align: center;
     }
-    #detailedReportInfo {
-        max-height: 300px;
-    }
+
 }
 </style>
 
@@ -432,10 +403,7 @@
                 <div class="chart-container">
                     <canvas id="yearlyChart"></canvas>
                 </div>
-				<div id="detailedReportInfo">
-				  <div id="detailedHeader"></div>
-				  <div id="detailedList"></div>
-				</div>
+				
             </div>
         </div>
         
@@ -988,36 +956,6 @@ L.control.layers(baseMaps).addTo(map);
 			}, 100);
 		}
 
-
-
-
-    // ... (Your existing JavaScript code)
-
-    function adjustDetailedInfoHeight() {
-        const infoPanel = document.querySelector('.info-panel');
-        const mapSettings = document.querySelector('.settings-panel.map-settings');
-        const statsGrid = document.querySelector('.stats-grid');
-        const chartContainer = document.querySelector('.chart-container');
-        const detailedInfo = document.getElementById('detailedReportInfo');
-
-        // Calculate the height of the other elements
-        let otherElementsHeight = 0;
-        if (mapSettings) otherElementsHeight += mapSettings.offsetHeight + 10; // Add margin
-        if (statsGrid) otherElementsHeight += statsGrid.offsetHeight + 10;
-        if (chartContainer) otherElementsHeight += chartContainer.offsetHeight + 10;
-
-        // Calculate the available height for detailedReportInfo
-        const availableHeight = infoPanel.offsetHeight - otherElementsHeight - 30; // Subtract padding
-
-        // Set the max-height of detailedReportInfo
-        detailedInfo.style.maxHeight = `${availableHeight}px`;
-    }
-
-    // Call this function on initial load and whenever the window resizes
-    window.addEventListener('load', adjustDetailedInfoHeight);
-    window.addEventListener('resize', adjustDetailedInfoHeight);
-
-    // ... (Rest of your JavaScript code)
 
 
        function addLegend() {
