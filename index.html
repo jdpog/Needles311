@@ -1326,7 +1326,7 @@ L.control.layers(baseMaps).addTo(map);
 				listHTML += `</div>`;
 			});
 
-			return `<div class="detailed-popup-content">${headerHTML}
+			return `<div style="max-height: 300px; overflow-y: auto;">${headerHTML}
 						<p>Total Reports: ${filteredReports.length}</p>
 						${listHTML}</div>`;
 		}
