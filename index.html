@@ -111,6 +111,7 @@
 				width: 250px;
 				max-width: 250px;
 				background-color: #f0f8ff;
+				
 			}
 			.leaflet-popup-content {
 				background-color: #f0f8ff;
@@ -466,6 +467,11 @@
 								id="toggleMarkerGrouping"
 								checked />
 						</div>
+						<div class="settings-row">
+							<label for="keywordInput">Keyword Filter:</label>
+							<input type="text" id="keywordInput" placeholder="Enter keyword to filter descriptions">
+							<button id="filterButton">Apply Filter</button>
+						</div>
 						<div
 							id="geocodeStatus"
 							style="margin-top: 5px; color: #666"></div>
@@ -685,6 +691,13 @@
 					radiusCircle.setRadius(RADIUS_METERS);
 					radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0.0 });
 				}
+				if (csvData && csvData.length > 0) {
+					processData(csvData);
+				}
+			});
+			
+			document.getElementById('filterButton').addEventListener('click', function() {
+				// Re-run processData with the existing dataset to apply the new filter.
 				if (csvData && csvData.length > 0) {
 					processData(csvData);
 				}
@@ -1036,95 +1049,94 @@
 			}
 
 			function processData(data) {
-				// Clear previously rendered layers and reports
-				markersGroup.clearLayers();
-				reportsByLocation.clear();
-				allReports = [];
+  // Clear previously rendered layers and reports
+  markersGroup.clearLayers();
+  reportsByLocation.clear();
+  allReports = [];
 
-				const groupByAddress = document.getElementById("toggleMarkerGrouping").checked;
-				let uniqueCounter = 0; // for non-grouped markers
+  // Get the current keyword filter and convert to lowercase for case-insensitive matching
+  const keyword = document.getElementById('keywordInput').value.trim().toLowerCase();
 
-				// 1. Compute the global date range from the entire dataset.
-				if (!globalDateRangeSet) {
-					const globalDates = [];
-					data.forEach((row) => {
-						if (row.requested_datetime) {
-							// Parse the date without filtering out any rows due to location.
-							const dt = moment(row.requested_datetime);
-							if (dt.isValid()) {
-								globalDates.push(dt);
-							}
-						}
-					});
-					if (globalDates.length > 0) {
-						// Use the earliest and latest dates from the global dataset.
-						startDate = moment.min(globalDates).clone().startOf("day");
-						endDate = moment.max(globalDates).clone().endOf("day");
-						// Force the current date to be the start date.
-						currentDate = startDate.clone();
+  const groupByAddress = document.getElementById('toggleMarkerGrouping').checked;
+  let uniqueCounter = 0; // for non-grouped markers
 
-						// Update animation controller with the global date range.
-						animationController.setDateRange(startDate, endDate, currentDate);
-						const slider = document.getElementById("timeSlider");
-						slider.min = 0;
-						slider.max = endDate.diff(startDate, "days");
-						slider.value = 0; // Ensures the slider starts at the earliest date.
+  // 1. Compute the global date range (if not already set).
+  if (!globalDateRangeSet) {
+    const globalDates = [];
+    data.forEach(row => {
+      if (row.requested_datetime) {
+        const dt = moment(row.requested_datetime);
+        if (dt.isValid()) {
+          globalDates.push(dt);
+        }
+      }
+    });
+    if (globalDates.length > 0) {
+      startDate = moment.min(globalDates).clone().startOf('day');
+      endDate = moment.max(globalDates).clone().endOf('day');
+      currentDate = startDate.clone();
+      animationController.setDateRange(startDate, endDate, currentDate);
+      const slider = document.getElementById('timeSlider');
+      slider.min = 0;
+      slider.max = endDate.diff(startDate, 'days');
+      slider.value = 0;
+      document.getElementById('endDate').textContent = endDate.format('MMM D, YYYY');
+      globalDateRangeSet = true;
+    }
+  }
 
-						// Always update the end date display.
-						document.getElementById("endDate").textContent = endDate.format("MMM D, YYYY");
+  // 2. Process data for visualization using the current map radius.
+  data.forEach(row => {
+    // If a keyword is provided, check if row.description contains the keyword
+    if (keyword !== "") {
+      // Make sure the description field exists, and convert it to lowercase for comparison
+      if (!row.description || row.description.toLowerCase().indexOf(keyword) === -1) {
+        return; // Skip this row if it doesn't match the filter.
+      }
+    }
+    
+    if (row.lat && row.long && row.requested_datetime) {
+      const lat = parseFloat(row.lat);
+      const lng = parseFloat(row.long);
+      if (!isNaN(lat) && !isNaN(lng) && isWithinRadius(lat, lng)) {
+        const date = moment(row.requested_datetime);
+        if (date.isValid()) {
+          // Group markers (by address or individual, per your existing logic)
+          let locationKey;
+          if (groupByAddress && row.address) {
+            locationKey = row.address.trim().toLowerCase();
+          } else {
+            locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
+          }
+          if (!reportsByLocation.has(locationKey)) {
+            reportsByLocation.set(locationKey, {
+              lat: lat,
+              lng: lng,
+              address: row.address || '',
+              reports: [],
+              latestDate: null
+            });
+          }
+          const report = { date: date, locationKey: locationKey, data: row };
+          const locationData = reportsByLocation.get(locationKey);
+          locationData.reports.push(report);
+          if (!locationData.latestDate || date > locationData.latestDate) {
+            locationData.latestDate = date;
+          }
+          allReports.push(report);
+        }
+      }
+    }
+  });
 
-						globalDateRangeSet = true;
-					}
-				}
+  allReports.sort((a, b) => a.date - b.date);
+  visualizeDataAtDate(animationController.currentDate);
+  updateYearlyChart(animationController.currentDate);
 
-				// 2. Process data for visualization using the current map radius.
-				// This block filters based on the location using isWithinRadius.
-				data.forEach((row) => {
-					if (row.lat && row.long && row.requested_datetime) {
-						const lat = parseFloat(row.lat);
-						const lng = parseFloat(row.long);
-						if (!isNaN(lat) && !isNaN(lng) && isWithinRadius(lat, lng)) {
-							const date = moment(row.requested_datetime);
-							if (date.isValid()) {
-								// Use address-based grouping if enabled; otherwise, assign a unique key
-								let locationKey;
-								if (groupByAddress && row.address) {
-									locationKey = row.address.trim().toLowerCase();
-								} else {
-									locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
-								}
-
-								if (!reportsByLocation.has(locationKey)) {
-									reportsByLocation.set(locationKey, {
-										lat: lat,
-										lng: lng,
-										address: row.address || "",
-										reports: [],
-										latestDate: null,
-									});
-								}
-								const report = { date: date, locationKey: locationKey, data: row };
-								const locationData = reportsByLocation.get(locationKey);
-								locationData.reports.push(report);
-								if (!locationData.latestDate || date > locationData.latestDate) {
-									locationData.latestDate = date;
-								}
-								allReports.push(report);
-							}
-						}
-					}
-				});
-
-				allReports.sort((a, b) => a.date - b.date);
-
-				// 3. Visualize markers and update other UI elements using the pre-established current date.
-				visualizeDataAtDate(animationController.currentDate);
-				updateYearlyChart(animationController.currentDate);
-
-				setTimeout(() => {
-					map.invalidateSize();
-				}, 100);
-			}
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 100);
+}
 
 			function addLegend() {
 				if (map.legend) {
