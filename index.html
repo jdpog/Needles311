@@ -1,1565 +1,1717 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="description" content="A visualization of Boston 311 needle reports that shows how the reports have changed both geographically and over time.">
-    <title>Boston Needle Reports Visualization</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico?">
-	<link rel="manifest" href="/site.webmanifest">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-    <!-- Add Chart.js for the yearly reports chart -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <!-- Add Leaflet.heat for heatmap functionality -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
-    <style>
-    /* (Existing styles remain unchanged) */
-    body, html {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        font-family: Arial, sans-serif;
-        overflow-x: hidden;
-    }
-	h4 {
-	margin:0;
-	}
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-        grid-template-areas: 
-            "settings"
-            "content"
-            "controls";
-        height: 100vh;
-        max-height: 100vh; /* This is important to prevent overall overflow */
-        overflow: hidden;
-    }
-    .settings-section {
-        grid-area: settings;
-        background-color: #f5f5f5;
-        padding: 10px;
-        overflow-y: auto;
-        max-height: 30vh;
-    }
-    .content-section {
-        grid-area: content;
-        display: grid;
-        grid-template-columns: 1fr 350px;
-        grid-template-areas: "map info";
-        height: 100%;
-        overflow: hidden;
-        /* max-height: calc(100vh - height of settings - height of controls); */
-    }
-    .controls-section {
-        grid-area: controls;
-        background-color: #f9f9f9;
-        padding: 10px;
-    }
-    .map-container {
-        grid-area: map;
-        position: relative;
-        height: 100%;
-        width: 100%;
-    }
-    #map {
-        height: 100%;
-        width: 100%;
-        contain: strict;
-        will-change: transform;
-    }
-    .info-panel {
-        grid-area: info;
-        background-color: #f0f8ff;
-        padding: 15px;
-        padding-bottom: 60px;
-        display: flex;
-        flex-direction: column;
-    }
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<meta
+			name="description"
+			content="A visualization of Boston 311 needle reports that shows how the reports have changed both geographically and over time." />
+		<title>Boston Needle Reports Visualization</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+		<link
+			rel="apple-touch-icon"
+			sizes="180x180"
+			href="/apple-touch-icon.png" />
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="32x32"
+			href="/favicon-32x32.png" />
+		<link
+			rel="icon"
+			type="image/png"
+			sizes="16x16"
+			href="/favicon-16x16.png" />
+		<link
+			rel="shortcut icon"
+			type="image/x-icon"
+			href="favicon.ico?" />
+		<link
+			rel="manifest"
+			href="/site.webmanifest" />
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+		<!-- Add Chart.js for the yearly reports chart -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+		<!-- Add Leaflet.heat for heatmap functionality -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+		<style>
+			/* (Existing styles remain unchanged) */
+			body,
+			html {
+				margin: 0;
+				padding: 0;
+				height: 100%;
+				font-family: Arial, sans-serif;
+				overflow-x: hidden;
+			}
+			h4 {
+				margin: 0;
+			}
+			.page-container {
+				display: grid;
+				grid-template-columns: 1fr;
+				grid-template-rows: auto 1fr auto;
+				grid-template-areas:
+					"settings"
+					"content"
+					"controls";
+				height: 100vh;
+				max-height: 100vh; /* This is important to prevent overall overflow */
+				overflow: hidden;
+			}
+			.settings-section {
+				grid-area: settings;
+				background-color: #f5f5f5;
+				padding: 10px;
+				overflow-y: auto;
+				max-height: 30vh;
+			}
+			.content-section {
+				grid-area: content;
+				display: grid;
+				grid-template-columns: 1fr 350px;
+				grid-template-areas: "map info";
+				height: 100%;
+				overflow: hidden;
+				/* max-height: calc(100vh - height of settings - height of controls); */
+			}
+			.controls-section {
+				grid-area: controls;
+				background-color: #f9f9f9;
+				padding: 10px;
+			}
+			.map-container {
+				grid-area: map;
+				position: relative;
+				height: 100%;
+				width: 100%;
+			}
+			#map {
+				height: 100%;
+				width: 100%;
+				contain: strict;
+				will-change: transform;
+			}
+			.info-panel {
+				grid-area: info;
+				background-color: #f0f8ff;
+				padding: 15px;
+				padding-bottom: 60px;
+				display: flex;
+				flex-direction: column;
+			}
 
-	.leaflet-popup-content-wrapper	{
-       width:250px;
-	   max-width:250px;
-	   background-color: #f0f8ff;
-	   }
-    .leaflet-popup-content
-		{
-		background-color: #f0f8ff;
-		}
-	.leaflet-popup-tip {
-		background-color: #f0f8ff;
-		}
-	.report-item {
-		background: white;
-		border-radius: 5px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-		padding: 5px;
-		margin-bottom:5px;
-		color: #333;
-		font-family: Arial, sans-serif;
-		}
-		
-body.dark-mode .leaflet-popup-content-wrapper 	{
-      background-color: #3a3a3a !important;
-      color: #ddd !important;
-    }
+			.leaflet-popup-content-wrapper {
+				width: 250px;
+				max-width: 250px;
+				background-color: #f0f8ff;
+			}
+			.leaflet-popup-content {
+				background-color: #f0f8ff;
+			}
+			.leaflet-popup-tip {
+				background-color: #f0f8ff;
+			}
+			.report-item {
+				background: white;
+				border-radius: 5px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+				padding: 5px;
+				margin-bottom: 5px;
+				color: #333;
+				font-family: Arial, sans-serif;
+			}
 
-body.dark-mode .leaflet-popup-content 
-	{
-      background-color: #3a3a3a !important;
-      color: #ddd !important;
-    }
-body.dark-mode .leaflet-popup-tip {
-      background-color: #3a3a3a !important;
-      color: #ddd !important;
-    }
-body.dark-mode .report-item {
-      background-color: #444 !important;
-      border-color: #555;
-      color: #ddd !important;
-    }
-	
-	
-    @media (max-width: 992px) {
-        .page-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: auto;
-        }
-        .settings-section {
-            order: 1;
-            max-height: none;
-            overflow-y: visible;
-        }
-        .map-settings {
-            order: 0;
-            margin-top: 0;
-            margin-bottom: 15px;
-            background-color: #e9f7ff;
-            border-radius: 5px;
-        }
-        .map-container {
-            order: 2;
-            height: 50vh;
-            min-height: 300px;
-			position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .controls-section {
-            order: 3;
-			position: sticky;
-            z-index: 1000;
-        }
-        .info-panel {
-            order: 4;
-            max-height: none;
-            display: flex;
-            flex-direction: column;
-			overflow-y: auto;
-        }
-        .content-section {
-            display: contents;
-        }
-        .settings-row label {
-            width: auto;
-            min-width: 120px;
-        }
-        #addressInput {
-            width: 100% !important;
-            margin-bottom: 5px;
-        }
-        #searchAddress {
-            margin-left: 0;
-        }
-        .legend {
-            transform: scale(0.6);
-            transform-origin: bottom right;
-        }
-		
-		.leaflet-popup-content-wrapper
-			{
-            transform: scale(0.6);
-			transform-origin: bottom;
-        }
-		
-    }
+			body.dark-mode .leaflet-popup-content-wrapper {
+				background-color: #3a3a3a !important;
+				color: #ddd !important;
+			}
 
-    .controls {
-        padding: 10px;
-        background-color: #f5f5f5;
-    }
-    .legend {
-        padding: 6px 8px;
-        background: white;
-        background: rgba(255, 255, 255, 0.8);
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-        border-radius: 5px;
-        line-height: 24px;
-        color: #555;
+			body.dark-mode .leaflet-popup-content {
+				background-color: #3a3a3a !important;
+				color: #ddd !important;
+			}
+			body.dark-mode .leaflet-popup-tip {
+				background-color: #3a3a3a !important;
+				color: #ddd !important;
+			}
+			body.dark-mode .report-item {
+				background-color: #444 !important;
+				border-color: #555;
+				color: #ddd !important;
+			}
 
-    }
-    .legend i {
-        width: 18px;
-        height: 18px;
-        float: left;
-        margin-right: 8px;
-        opacity: 0.7;
-    }
-    .info {
-        padding: 10px;
-        background-color: #e3f2fd;
-        margin-bottom: 10px;
-        border-radius: 4px;
-    }
-    .animation-controls {
-        margin-top: 0;
-        padding: 10px;
-        background-color: #f9f9f9;
-        border-radius: 4px;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px;
-    }
-    .animation-controls button {
-        padding: 5px 5px;
-        cursor: pointer;
-    }
-    .time-slider-container {
-        flex-grow: 1;
-        display: flex;
-        align-items: center;
-        gap: 0px;
-        width: 100%;
-    }
-    #timeSlider {
-        flex-grow: 1;
-    }
-    .date-display {
-        width: 150px;
-        text-align: center;
-        font-weight: bold;
-        overflow: hidden;
-        white-space: nowrap;
-    }
-    .speed-control {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .settings-panel {
-        padding: 10px;
-        background-color: #f5f5f5;
-        border-radius: 4px;
-    }
-    .settings-panel h3 {
-        margin-top: 0;
-    }
-    .settings-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-    .settings-row label {
-        width: 150px;
-    }
-    .settings-row input[type="number"] {
-        width: 100px;
-    }
-    .settings-row button {
-        margin-left: auto;
-        padding: 5px 10px;
-    }
+			@media (max-width: 992px) {
+				.page-container {
+					display: flex;
+					flex-direction: column;
+					height: 100vh;
+					overflow: auto;
+				}
+				.settings-section {
+					order: 1;
+					max-height: none;
+					overflow-y: visible;
+				}
+				.map-settings {
+					order: 0;
+					margin-top: 0;
+					margin-bottom: 15px;
+					background-color: #e9f7ff;
+					border-radius: 5px;
+				}
+				.map-container {
+					order: 2;
+					height: 50vh;
+					min-height: 300px;
+					position: sticky;
+					top: 0;
+					z-index: 1000;
+				}
+				.controls-section {
+					order: 3;
+					position: sticky;
+					z-index: 1000;
+				}
+				.info-panel {
+					order: 4;
+					max-height: none;
+					display: flex;
+					flex-direction: column;
+					overflow-y: auto;
+				}
+				.content-section {
+					display: contents;
+				}
+				.settings-row label {
+					width: auto;
+					min-width: 120px;
+				}
+				#addressInput {
+					width: 100% !important;
+					margin-bottom: 5px;
+				}
+				#searchAddress {
+					margin-left: 0;
+				}
+				.legend {
+					transform: scale(0.6);
+					transform-origin: bottom right;
+				}
 
-    .settings-suboption {
-        margin-left: 20px; /* Adjust the indentation as needed */
-        font-size: 0.9em;  /* Optionally reduce font size */
-        padding: 4px 0;    /* Optional spacing adjustments */
-    }
-    .chart-container {
-        width: 100%;
-        height: 200px;
-        position: relative;
-    }
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
-        gap: 15px;
-        margin-bottom: 10px;
-    }
-    .stat-card {
-        background: white;
-        padding: 10px;
-        border-radius: 5px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .stat-card p {
-        margin: 5px 0;
-    }
-    body.animation-active {
-        pointer-events: none;
-    }
-    body.animation-active .animation-controls,
-    body.animation-active .settings-panel {
-        pointer-events: auto;
-    }
-    .leaflet-tile-container {
-        will-change: transform;
-    }
-    .leaflet-marker-pane {
-        will-change: transform;
-    }
+				.leaflet-popup-content-wrapper {
+					transform: scale(0.6);
+					transform-origin: bottom;
+				}
+			}
 
-    body.animation-active .animation-controls {
-        background-color: #e6f7ff;
-    }
+			.controls {
+				padding: 10px;
+				background-color: #f5f5f5;
+			}
+			.legend {
+				padding: 6px 8px;
+				background: white;
+				background: rgba(255, 255, 255, 0.8);
+				box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+				border-radius: 5px;
+				line-height: 24px;
+				color: #555;
+			}
+			.legend i {
+				width: 18px;
+				height: 18px;
+				float: left;
+				margin-right: 8px;
+				opacity: 0.7;
+			}
+			.info {
+				padding: 10px;
+				background-color: #e3f2fd;
+				margin-bottom: 10px;
+				border-radius: 4px;
+			}
+			.animation-controls {
+				margin-top: 0;
+				padding: 10px;
+				background-color: #f9f9f9;
+				border-radius: 4px;
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 10px;
+			}
+			.animation-controls button {
+				padding: 5px 5px;
+				cursor: pointer;
+			}
+			.time-slider-container {
+				flex-grow: 1;
+				display: flex;
+				align-items: center;
+				gap: 0px;
+				width: 100%;
+			}
+			#timeSlider {
+				flex-grow: 1;
+			}
+			.date-display {
+				width: 150px;
+				text-align: center;
+				font-weight: bold;
+				overflow: hidden;
+				white-space: nowrap;
+			}
+			.speed-control {
+				display: flex;
+				align-items: center;
+				gap: 5px;
+			}
+			.settings-panel {
+				padding: 10px;
+				background-color: #f5f5f5;
+				border-radius: 4px;
+			}
+			.settings-panel h3 {
+				margin-top: 0;
+			}
+			.settings-row {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				margin-bottom: 10px;
+			}
+			.settings-row label {
+				width: 150px;
+			}
+			.settings-row input[type="number"] {
+				width: 100px;
+			}
+			.settings-row button {
+				margin-left: auto;
+				padding: 5px 10px;
+			}
 
-    /* Dark mode overall text and background, if not already defined */
-    body.dark-mode {
-      background-color: #222;
-      color: #ddd;
-    }
+			.settings-suboption {
+				margin-left: 20px; /* Adjust the indentation as needed */
+				font-size: 0.9em; /* Optionally reduce font size */
+				padding: 4px 0; /* Optional spacing adjustments */
+			}
+			.chart-container {
+				width: 100%;
+				height: 200px;
+				position: relative;
+			}
+			.stats-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+				gap: 15px;
+				margin-bottom: 10px;
+			}
+			.stat-card {
+				background: white;
+				padding: 10px;
+				border-radius: 5px;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+			}
+			.stat-card p {
+				margin: 5px 0;
+			}
+			body.animation-active {
+				pointer-events: none;
+			}
+			body.animation-active .animation-controls,
+			body.animation-active .settings-panel {
+				pointer-events: auto;
+			}
+			.leaflet-tile-container {
+				will-change: transform;
+			}
+			.leaflet-marker-pane {
+				will-change: transform;
+			}
 
-    /* Override the settings section */
-    body.dark-mode .settings-section {
-      background-color: #333 !important;
-      color: #ddd !important;
-    }
+			body.animation-active .animation-controls {
+				background-color: #e6f7ff;
+			}
 
-    /* Override the controls section */
-    body.dark-mode .controls-section {
-      background-color: #2a2a2a !important;
-      color: #ddd !important;
-    }
+			/* Dark mode overall text and background, if not already defined */
+			body.dark-mode {
+				background-color: #222;
+				color: #ddd;
+			}
 
-    /* Override the info panel (which contains statistics and map settings) */
-    body.dark-mode .info-panel {
-      background-color: #3a3a3a !important;
-      color: #ddd !important;
-    }
+			/* Override the settings section */
+			body.dark-mode .settings-section {
+				background-color: #333 !important;
+				color: #ddd !important;
+			}
 
-    /* Optionally, adjust any inner panels like the map-settings panel */
-    body.dark-mode .settings-panel.map-settings {
-      background-color: #333 !important;
-      border-color: #555;
-    }
+			/* Override the controls section */
+			body.dark-mode .controls-section {
+				background-color: #2a2a2a !important;
+				color: #ddd !important;
+			}
 
-    /* Update stat cards and other nested elements, if needed */
-    body.dark-mode .stat-card {
-      background-color: #444 !important;
-      border-color: #555;
-      color: #ddd !important;
-    }
+			/* Override the info panel (which contains statistics and map settings) */
+			body.dark-mode .info-panel {
+				background-color: #3a3a3a !important;
+				color: #ddd !important;
+			}
 
-    /* And the controls inside the animation area */
-    body.dark-mode .animation-controls {
-      background-color: #2a2a2a !important;
-      color: #ddd !important;
-    }
+			/* Optionally, adjust any inner panels like the map-settings panel */
+			body.dark-mode .settings-panel.map-settings {
+				background-color: #333 !important;
+				border-color: #555;
+			}
 
-@media (max-width: 600px) {
-    .stats-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 3px; /* tighter gap on mobile */
-    }
+			/* Update stat cards and other nested elements, if needed */
+			body.dark-mode .stat-card {
+				background-color: #444 !important;
+				border-color: #555;
+				color: #ddd !important;
+			}
 
-    .stat-card {
-        padding: 3px;      /* reduce padding */
-        font-size: 0.7rem; /* adjust font size as needed */
-        text-align: center;
-    }
+			/* And the controls inside the animation area */
+			body.dark-mode .animation-controls {
+				background-color: #2a2a2a !important;
+				color: #ddd !important;
+			}
 
-}
-</style>
+			@media (max-width: 600px) {
+				.stats-grid {
+					grid-template-columns: repeat(3, 1fr);
+					gap: 3px; /* tighter gap on mobile */
+				}
 
-</head>
-<body>
-    <div class="page-container">
-        <!-- Settings Section at top -->
-        <!-- <div class="settings-section"> -->
-            <!-- <div class="info">
+				.stat-card {
+					padding: 3px; /* reduce padding */
+					font-size: 0.7rem; /* adjust font size as needed */
+					text-align: center;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="page-container">
+			<!-- Settings Section at top -->
+			<!-- <div class="settings-section"> -->
+			<!-- <div class="info">
                 <h2>Boston Needle Reports Visualization</h2>
                 <p>This visualization automatically loads needle reports from "needles_all.csv".</p>
             </div> -->
-            <!-- <div class="input-controls"> -->
-                <!-- Removed file input for CSV file -->
-                <!-- <input type="file" id="csvFile" class="input-file" accept=".csv"> -->
-                <!-- <button id="loadSampleData">Load Sample Data</button> -->
-            <!-- </div> -->
-        
-        
-        <!-- Content Section (Map and Info) -->
-        <div class="content-section">
-            <!-- Map Container -->
-            <div class="map-container">
-                <div id="map"></div>
-            </div>
-            
-            <!-- Info Panel -->
-            <div class="info-panel">
-                <!-- Map Settings moved to info panel for desktop layout -->
-                <div class="settings-panel map-settings">
-                    <h3>Map Settings</h3>
-                    <div class="settings-row">
-                        <!-- <label for="addressInput">Address:</label> -->
-                        <input type="text" id="addressInput" placeholder="Enter an address" style="width: 300px;">
-                        <button id="searchAddress">Search</button>
-                    </div>
-                    <div class="settings-row">
-                        <label for="radiusSlider">Radius (miles):</label>
-                        <input type="range" id="radiusSlider" min="0.1" max="3.1" step="0.05" value="0.25">
-                        <span id="radiusValue">0.25</span>
-                    </div>
-                    <!-- Heatmap toggle row -->
-                    <div class="settings-row">
-                        <label for="toggleHeatmap">Show Heatmap:</label>
-                        <input type="checkbox" id="toggleHeatmap">
-                    </div>
-                    <!-- Marker toggle row added below -->
-                    <div class="settings-row">
-                        <label for="toggleMarkers">Show Markers:</label>
-                        <input type="checkbox" id="toggleMarkers" checked>
-                    </div>
-					<div class="settings-suboption">
-						<label for="toggleMarkerGrouping">Group by Address:</label>
-						<input type="checkbox" id="toggleMarkerGrouping" checked>
+			<!-- <div class="input-controls"> -->
+			<!-- Removed file input for CSV file -->
+			<!-- <input type="file" id="csvFile" class="input-file" accept=".csv"> -->
+			<!-- <button id="loadSampleData">Load Sample Data</button> -->
+			<!-- </div> -->
+
+			<!-- Content Section (Map and Info) -->
+			<div class="content-section">
+				<!-- Map Container -->
+				<div class="map-container">
+					<div id="map"></div>
+				</div>
+
+				<!-- Info Panel -->
+				<div class="info-panel">
+					<!-- Map Settings moved to info panel for desktop layout -->
+					<div class="settings-panel map-settings">
+						<h3>Map Settings</h3>
+						<div class="settings-row">
+							<!-- <label for="addressInput">Address:</label> -->
+							<input
+								type="text"
+								id="addressInput"
+								placeholder="Enter an address"
+								style="width: 300px" />
+							<button id="searchAddress">Search</button>
+						</div>
+						<div class="settings-row">
+							<label for="radiusSlider">Radius (miles):</label>
+							<input
+								type="range"
+								id="radiusSlider"
+								min="0.1"
+								max="3.1"
+								step="0.05"
+								value="0.25" />
+							<span id="radiusValue">0.25</span>
+						</div>
+						<!-- Heatmap toggle row -->
+						<div class="settings-row">
+							<label for="toggleHeatmap">Show Heatmap:</label>
+							<input
+								type="checkbox"
+								id="toggleHeatmap" />
+						</div>
+						<!-- Marker toggle row added below -->
+						<div class="settings-row">
+							<label for="toggleMarkers">Show Markers:</label>
+							<input
+								type="checkbox"
+								id="toggleMarkers"
+								checked />
+						</div>
+						<div class="settings-suboption">
+							<label for="toggleMarkerGrouping">Group by Address:</label>
+							<input
+								type="checkbox"
+								id="toggleMarkerGrouping"
+								checked />
+						</div>
+						<div
+							id="geocodeStatus"
+							style="margin-top: 5px; color: #666"></div>
 					</div>
-                    <div id="geocodeStatus" style="margin-top: 5px; color: #666;"></div>
-                </div>
-                
-                <h3>Needle Reports Statistics</h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>Total Reports</h4>
-                        <p id="totalReports">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Active Locations</h4>
-                        <p id="activeLocations">0</p>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Recent Reports (30d)</h4>
-                        <p id="recentReports">0</p>
-                    </div>
-                </div>
-                
-                <h3>Reports by Year</h3>
-                <div class="chart-container">
-                    <canvas id="yearlyChart"></canvas>
-                </div>
-				
-            </div>
-        </div>
-        
-        <!-- Controls Section at bottom -->
-        <div class="controls-section">
-            <div class="animation-controls">
-                <button id="playButton">▶️ Play</button>
-                <button id="pauseButton" disabled>⏸️ Pause</button>
-                <button id="restartButton">🔄 Restart</button>
-				<div class="speed-control">
-                    <label for="speedControl">Speed:</label>
-                    <select id="speedControl">
-                        <option value="0.5">0.5x</option>
-                        <option value="1" selected>1x</option>
-                        <option value="2">2x</option>
-                        <option value="5">5x</option>
-                        <option value="10">10x</option>
-                        <option value="25">25x</option>
-                        <option value="50">50x</option>
-                    </select>
-                </div>
-                <div class="time-slider-container">
-                    <div class="date-display" id="currentDate">-</div>
-                    <input type="range" id="timeSlider" min="0" max="100" value="0">
-                    <div class="date-display" id="endDate">-</div>
-                </div>
-                
-            </div>
-        </div>
-    </div>
 
-    <script>
-        // Initialize with default center coordinates and quarter mile radius
-        let CENTER_LAT = 42.32995;
-        let CENTER_LNG = -71.11142;
-        let RADIUS_MILES = 0.25;
-        let RADIUS_METERS = RADIUS_MILES * 1609.34; // Convert miles to meters
-        let csvData = []; // Store the CSV data globally
-		let globalDateRangeSet = false;
+					<h3>Needle Reports Statistics</h3>
+					<div class="stats-grid">
+						<div class="stat-card">
+							<h4>Total Reports</h4>
+							<p id="totalReports">0</p>
+						</div>
+						<div class="stat-card">
+							<h4>Active Locations</h4>
+							<p id="activeLocations">0</p>
+						</div>
+						<div class="stat-card">
+							<h4>Recent Reports (30d)</h4>
+							<p id="recentReports">0</p>
+						</div>
+					</div>
 
-   
-		const lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-    subdomains: 'abcd',
-    maxZoom: 19
-});
+					<h3>Reports by Year</h3>
+					<div class="chart-container">
+						<canvas id="yearlyChart"></canvas>
+					</div>
+				</div>
+			</div>
 
-const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-    subdomains: 'abcd',
-    maxZoom: 19
-});
-// Initialize the map with the light layer.
-const map = L.map('map', { layers: [lightLayer] }).setView([CENTER_LAT, CENTER_LNG], 16);
+			<!-- Controls Section at bottom -->
+			<div class="controls-section">
+				<div class="animation-controls">
+					<button id="playButton">▶️ Play</button>
+					<button
+						id="pauseButton"
+						disabled>
+						⏸️ Pause
+					</button>
+					<button id="restartButton">🔄 Restart</button>
+					<div class="speed-control">
+						<label for="speedControl">Speed:</label>
+						<select id="speedControl">
+							<option value="0.5">0.5x</option>
+							<option
+								value="1"
+								selected>
+								1x
+							</option>
+							<option value="2">2x</option>
+							<option value="5">5x</option>
+							<option value="10">10x</option>
+							<option value="25">25x</option>
+							<option value="50">50x</option>
+						</select>
+					</div>
+					<div class="time-slider-container">
+						<div
+							class="date-display"
+							id="currentDate">
+							-
+						</div>
+						<input
+							type="range"
+							id="timeSlider"
+							min="0"
+							max="100"
+							value="0" />
+						<div
+							class="date-display"
+							id="endDate">
+							-
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-// Define the baseMaps object.
-const baseMaps = {
-    "Light": lightLayer,
-    "Dark": darkLayer
-};
+		<script>
+			// Initialize with default center coordinates and quarter mile radius
+			let CENTER_LAT = 42.32995;
+			let CENTER_LNG = -71.11142;
+			let RADIUS_MILES = 0.25;
+			let RADIUS_METERS = RADIUS_MILES * 1609.34; // Convert miles to meters
+			let csvData = []; // Store the CSV data globally
+			let globalDateRangeSet = false;
 
-// Add Leaflet’s layer control to the map.
-L.control.layers(baseMaps).addTo(map);
+			const lightLayer = L.tileLayer(
+				"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+				{
+					attribution:
+						'&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
+					subdomains: "abcd",
+					maxZoom: 19,
+				},
+			);
 
+			const darkLayer = L.tileLayer(
+				"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+				{
+					attribution:
+						'&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
+					subdomains: "abcd",
+					maxZoom: 19,
+				},
+			);
+			// Initialize the map with the light layer.
+			const map = L.map("map", { layers: [lightLayer] }).setView(
+				[CENTER_LAT, CENTER_LNG],
+				16,
+			);
 
-        // Create a circle for the radius
-        let radiusCircle = L.circle([CENTER_LAT, CENTER_LNG], {
-            color: '#3388ff',
-            fillColor: '#3388ff',
-            fillOpacity: 0.0,
-            radius: RADIUS_METERS
-        }).addTo(map);
+			// Define the baseMaps object.
+			const baseMaps = {
+				Light: lightLayer,
+				Dark: darkLayer,
+			};
 
-        // Create a marker for the center
-        let centerMarker = L.marker([CENTER_LAT, CENTER_LNG])
-            .bindPopup(`Center: ${CENTER_LAT}, ${CENTER_LNG}`)
-            .addTo(map);
-            
-        // Update map center on movement
-        map.on('moveend', function(e) {
-            const center = map.getCenter();
-            CENTER_LAT = center.lat;
-            CENTER_LNG = center.lng;
-            radiusCircle.setLatLng([CENTER_LAT, CENTER_LNG]);
-            centerMarker.setLatLng([CENTER_LAT, CENTER_LNG])
-                .bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`);
-			if (csvData && csvData.length > 0) {
-                processData(csvData);
-            }
-        });
+			// Add Leaflet’s layer control to the map.
+			L.control.layers(baseMaps).addTo(map);
 
-        // Global heatmap layer (initialized but not added by default)
-        let heatLayer = L.heatLayer([], {radius: 25, blur: 15, maxZoom: 17});
-        // Listen for heatmap toggle changes
-        document.getElementById('toggleHeatmap').addEventListener('change', function(e) {
-            if (this.checked) {
-                heatLayer.addTo(map);
-            } else {
-                map.removeLayer(heatLayer);
-            }
-			processData(csvData);
-        });
+			// Create a circle for the radius
+			let radiusCircle = L.circle([CENTER_LAT, CENTER_LNG], {
+				color: "#3388ff",
+				fillColor: "#3388ff",
+				fillOpacity: 0.0,
+				radius: RADIUS_METERS,
+			}).addTo(map);
 
-        // Create markers layer and add it by default
-        const markersGroup = L.layerGroup().addTo(map);
-        // Listen for marker toggle changes
-        document.getElementById('toggleMarkers').addEventListener('change', function(e) {
-			if (this.checked) {
-				markersGroup.addTo(map);
-				// Add the legend if it doesn't already exist.
-				if (!map.legend) {
-					addLegend();
+			// Create a marker for the center
+			let centerMarker = L.marker([CENTER_LAT, CENTER_LNG])
+				.bindPopup(`Center: ${CENTER_LAT}, ${CENTER_LNG}`)
+				.addTo(map);
+
+			// Update map center on movement
+			map.on("moveend", function (e) {
+				const center = map.getCenter();
+				CENTER_LAT = center.lat;
+				CENTER_LNG = center.lng;
+				radiusCircle.setLatLng([CENTER_LAT, CENTER_LNG]);
+				centerMarker
+					.setLatLng([CENTER_LAT, CENTER_LNG])
+					.bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`);
+				if (csvData && csvData.length > 0) {
+					processData(csvData);
 				}
-			} else {
-				map.removeLayer(markersGroup);
-				// Remove the legend if it exists.
-				if (map.legend) {
-					map.legend.remove();
-					map.legend = null;
-				}
-			}
-		});
+			});
 
-        // Map to store reports by location
-        const reportsByLocation = new Map();
-        // Animation variables
-        let allReports = [];
-        let startDate = null;
-        let endDate = null;
-        let currentDate = null;
+			// Global heatmap layer (initialized but not added by default)
+			let heatLayer = L.heatLayer([], { radius: 25, blur: 15, maxZoom: 17 });
+			// Listen for heatmap toggle changes
+			document
+				.getElementById("toggleHeatmap")
+				.addEventListener("change", function (e) {
+					if (this.checked) {
+						heatLayer.addTo(map);
+					} else {
+						map.removeLayer(heatLayer);
+					}
+					processData(csvData);
+				});
 
-        // Update UI with current radius
-        const initialRadius = parseFloat(document.getElementById('radiusSlider').value);
-        document.getElementById('radiusValue').textContent = initialRadius.toFixed(2);
-
-        // Function to check if a point is within radius of center
-        function isWithinRadius(lat, lng) {
-            if (RADIUS_MILES === -1) {
-                return true;
-            }
-            const center = L.latLng(CENTER_LAT, CENTER_LNG);
-            const point = L.latLng(lat, lng);
-            return center.distanceTo(point) <= RADIUS_METERS;
-        }
-
-        // Removed file input event listener
-
-        // Radius slider event listener
-        document.getElementById('radiusSlider').addEventListener('input', function(e) {
-            RADIUS_MILES = parseFloat(e.target.value);
-            if (RADIUS_MILES >= 3.1) {
-                document.getElementById('radiusValue').textContent = "MAX";
-                RADIUS_MILES = -1;
-                radiusCircle.setStyle({ opacity: 0, fillOpacity: 0 });
-            } else {
-                document.getElementById('radiusValue').textContent = RADIUS_MILES.toFixed(2);
-                RADIUS_METERS = RADIUS_MILES * 1609.34;
-                radiusCircle.setRadius(RADIUS_METERS);
-                radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0.0 });
-            }
-            if (csvData && csvData.length > 0) {
-                processData(csvData);
-            }
-        });
-
-		map.on('baselayerchange', function (event) {
-		  if (event.name === "Dark") {
-			// Switch the page to dark mode
-			document.body.classList.add("dark-mode");
-		  } else {
-			// Switch the page back to light mode
-			document.body.classList.remove("dark-mode");
-		  }
-		});
-        // Geocoding functions
-
-        // Function to geocode an address using OpenStreetMap Nominatim
-        function geocodeAddress(address) {
-            const statusElement = document.getElementById('geocodeStatus');
-            statusElement.textContent = "Searching for address...";
-            statusElement.style.color = "#666";
-            
-            // Add Boston, MA to the search query if not already present
-            let searchQuery = address;
-            if (!searchQuery.toLowerCase().includes("boston") && !searchQuery.toLowerCase().includes("ma")) {
-                searchQuery += " Boston, MA";
-            }
-            
-            // Build the Nominatim API URL
-            const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=jsonv2&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1`;
-            
-            fetch(nominatimUrl, {
-                headers: { 'User-Agent': 'Boston311Visualization/1.0' }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Network error: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.length > 0) {
-                    const result = data[0];
-                    const lat = parseFloat(result.lat);
-                    const lng = parseFloat(result.lon);
-                    
-                    let displayName = result.display_name;
-                    if (displayName.length > 60) {
-                        displayName = displayName.substring(0, 60) + "...";
-                    }
-                    
-                    CENTER_LAT = lat;
-                    CENTER_LNG = lng;
-                    
-                    statusElement.textContent = `Found: ${displayName}`;
-                    statusElement.style.color = "green";
-                    
-                    map.setView([lat, lng], 16);
-                    radiusCircle.setLatLng([lat, lng]);
-                    centerMarker.setLatLng([lat, lng])
-                        .bindPopup(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-                    
-                    if (csvData && csvData.length > 0) {
-                        processData(csvData);
-                    }
-                    return;
-                }
-                checkLocalDatabase(address, statusElement);
-            })
-            .catch(error => {
-                console.error("Geocoding error:", error);
-                tryJSONPNominatim(searchQuery, statusElement);
-            });
-        }
-
-        // JSONP fallback for Nominatim (to bypass CORS issues)
-        function tryJSONPNominatim(searchQuery, statusElement) {
-            const callbackName = 'nominatimCallback_' + Math.floor(Math.random() * 1000000);
-            const script = document.createElement('script');
-            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1&json_callback=${callbackName}`;
-            
-            window[callbackName] = function(data) {
-                document.head.removeChild(script);
-                if (data && data.length > 0) {
-                    const result = data[0];
-                    const lat = parseFloat(result.lat);
-                    const lng = parseFloat(result.lon);
-                    
-                    let displayName = result.display_name;
-                    if (displayName.length > 60) {
-                        displayName = displayName.substring(0, 60) + "...";
-                    }
-                    
-                    CENTER_LAT = lat;
-                    CENTER_LNG = lng;
-                    
-                    statusElement.textContent = `Found: ${displayName}`;
-                    statusElement.style.color = "green";
-                    
-                    map.setView([lat, lng], 16);
-                    radiusCircle.setLatLng([lat, lng]);
-                    centerMarker.setLatLng([lat, lng])
-                        .bindPopup(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-                    
-                    if (csvData && csvData.length > 0) {
-                        processData(csvData);
-                    }
-                } else {
-                    checkLocalDatabase(searchQuery, statusElement);
-                }
-                delete window[callbackName];
-            };
-            
-            script.src = url;
-            document.head.appendChild(script);
-            
-            setTimeout(function() {
-                if (window[callbackName]) {
-                    delete window[callbackName];
-                    if (document.head.contains(script)) {
-                        document.head.removeChild(script);
-                    }
-                    checkLocalDatabase(searchQuery, statusElement);
-                }
-            }, 5000);
-        }
-
-        // Fallback to local database for Boston locations
-        function checkLocalDatabase(address, statusElement) {
-            const bostonLocations = {
-                "mission hill": { lat: 42.3295, lng: -71.1045, name: "Mission Hill, Boston, MA" },
-                "roxbury": { lat: 42.3298, lng: -71.0892, name: "Roxbury, Boston, MA" },
-                "jamaica plain": { lat: 42.3066, lng: -71.1152, name: "Jamaica Plain, Boston, MA" },
-                "fenway": { lat: 42.3429, lng: -71.1003, name: "Fenway, Boston, MA" },
-                "boston common": { lat: 42.3554, lng: -71.0660, name: "Boston Common, Boston, MA" },
-                "dorchester": { lat: 42.2933, lng: -71.0670, name: "Dorchester, Boston, MA" },
-                "south boston": { lat: 42.3359, lng: -71.0328, name: "South Boston, MA" },
-                "brighton": { lat: 42.3464, lng: -71.1627, name: "Brighton, Boston, MA" },
-                "allston": { lat: 42.3509, lng: -71.1324, name: "Allston, Boston, MA" },
-                "beacon hill": { lat: 42.3589, lng: -71.0702, name: "Beacon Hill, Boston, MA" },
-                "back bay": { lat: 42.3503, lng: -71.0810, name: "Back Bay, Boston, MA" },
-                "downtown boston": { lat: 42.3601, lng: -71.0589, name: "Downtown Boston, MA" }
-            };
-            
-            const bostonStreets = {
-                "south huntington ave": { lat: 42.3238, lng: -71.1113, name: "South Huntington Avenue, Boston, MA" },
-                "s huntington ave": { lat: 42.3238, lng: -71.1113, name: "South Huntington Avenue, Boston, MA" },
-                "huntington ave": { lat: 42.3372, lng: -71.0957, name: "Huntington Avenue, Boston, MA" },
-                "massachusetts ave": { lat: 42.3418, lng: -71.1021, name: "Massachusetts Avenue, Boston, MA" },
-                "mass ave": { lat: 42.3418, lng: -71.1021, name: "Massachusetts Avenue, Boston, MA" },
-                "commonwealth ave": { lat: 42.3503, lng: -71.0923, name: "Commonwealth Avenue, Boston, MA" },
-                "comm ave": { lat: 42.3503, lng: -71.0923, name: "Commonwealth Avenue, Boston, MA" }
-            };
-            
-            const cleanAddress = address.toLowerCase().trim();
-            for (const [key, location] of Object.entries(bostonLocations)) {
-                if (cleanAddress.includes(key)) {
-                    updateMapLocation(location.lat, location.lng, location.name, statusElement);
-                    return;
-                }
-            }
-            for (const [streetKey, location] of Object.entries(bostonStreets)) {
-                if (cleanAddress.includes(streetKey)) {
-                    updateMapLocation(location.lat, location.lng, location.name, statusElement);
-                    return;
-                }
-            }
-            
-            statusElement.textContent = "Address not found. Try specifying a Boston location like 'South Huntington Ave, Boston'.";
-            statusElement.style.color = "red";
-        }
-
-        // Helper function to update the map based on a found location
-        function updateMapLocation(lat, lng, displayName, statusElement) {
-            CENTER_LAT = lat;
-            CENTER_LNG = lng;
-            statusElement.textContent = `Found: ${displayName}`;
-            statusElement.style.color = "green";
-            map.setView([CENTER_LAT, CENTER_LNG], 16);
-            radiusCircle.setLatLng([CENTER_LAT, CENTER_LNG]);
-            centerMarker.setLatLng([CENTER_LAT, CENTER_LNG])
-                .bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`);
-            if (csvData && csvData.length > 0) {
-                processData(csvData);
-            }
-        }
-
-        // Attach event listeners for address search
-        document.getElementById('searchAddress').addEventListener('click', function() {
-            const address = document.getElementById('addressInput').value.trim();
-            if (address) {
-                geocodeAddress(address);
-            }
-        });
-        document.getElementById('addressInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const address = this.value.trim();
-                if (address) {
-                    geocodeAddress(address);
-                }
-            }
-        });
-
-        function processCSV(file) {
-            // Not used anymore, as we load CSV directly via needles_all.csv
-            Papa.parse(file, {
-                header: true,
-                complete: function(results) {
-                    csvData = results.data;
-                    processData(csvData);
-                },
-                error: function(error) {
-                    console.error('Error parsing CSV:', error);
-                    alert('Error parsing CSV file. Please check the format.');
-                }
-            });
-        }
-
-			function showFullSizeImage(mediaUrl, description, titleText) {
-			  // Create an overlay covering the entire viewport
-			  var overlay = document.createElement("div");
-			  overlay.id = "imageOverlay";
-			  overlay.style.position = "fixed";
-			  overlay.style.top = 0;
-			  overlay.style.left = 0;
-			  overlay.style.width = "100%";
-			  overlay.style.height = "100%";
-			  overlay.style.backgroundColor = "rgba(0,0,0,0.8)";
-			  overlay.style.display = "flex";
-			  overlay.style.justifyContent = "center";
-			  overlay.style.alignItems = "center";
-			  overlay.style.zIndex = 10000;
-
-			  // Create a container for the popup content
-			  var container = document.createElement("div");
-			  container.style.position = "relative";
-			  container.style.backgroundColor = "#fff";
-			  container.style.padding = "15px";
-			  container.style.maxWidth = "90vw";
-			  container.style.maxHeight = "90vh";
-			  container.style.overflow = "auto";
-			  container.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
-			  
-			  // Create a title element (includes address or coordinates and date/time)
-			  var titleEl = document.createElement("h2");
-			  titleEl.style.marginTop = "0";
-			  titleEl.style.fontSize = "1.2em";
-			  titleEl.style.color = "black";
-			  titleEl.textContent = titleText;
-			  container.appendChild(titleEl);
-
-			  // Create the full-size image element
-			  var imgEl = document.createElement("img");
-			  imgEl.src = mediaUrl;
-			  imgEl.style.width = "100%";
-			  // Limit the image height so the overall container stays within 90vh.
-				imgEl.style.maxHeight = "calc(90vh - 150px)"; // 150px accounts for header, caption, padding, etc.
-				imgEl.style.objectFit = "contain"; // Scale down without distortion.
-			  imgEl.style.display = "block";
-			  imgEl.style.margin = "10px 0";
-			  container.appendChild(imgEl);
-
-			  // Create the caption element (the description)
-			  var captionEl = document.createElement("p");
-			  captionEl.style.fontSize = "1em";
-			  captionEl.style.color = "#333";
-			  captionEl.textContent = description || "";
-			  container.appendChild(captionEl);
-
-			  // Create a close button (×)
-			  var closeButton = document.createElement("span");
-			  closeButton.textContent = "\u00D7";
-			  closeButton.style.position = "absolute";
-			  closeButton.style.top = "10px";
-			  closeButton.style.right = "15px";
-			  closeButton.style.fontSize = "1.5em";
-			  closeButton.style.cursor = "pointer";
-			  closeButton.style.color = "#333";
-			  container.appendChild(closeButton);
-
-			  // Append the container to the overlay and the overlay to the document
-			  overlay.appendChild(container);
-			  document.body.appendChild(overlay);
-
-			  // Function to remove the overlay
-			  function removeOverlay() {
-				if (document.body.contains(overlay)) {
-				  document.body.removeChild(overlay);
-				}
-			  }
-
-			  // Close when the close button is clicked
-			  closeButton.addEventListener("click", removeOverlay);
-			  // Also close if the user clicks outside the container
-			  overlay.addEventListener("click", function (e) {
-				if (e.target === overlay) {
-				  removeOverlay();
-				}
-			  });
-			}
-
-        function processData(data) {
-			// Clear previously rendered layers and reports
-			markersGroup.clearLayers();
-			reportsByLocation.clear();
-			allReports = [];
-			
-			const groupByAddress = document.getElementById('toggleMarkerGrouping').checked;
-			let uniqueCounter = 0; // for non-grouped markers
-
-			// 1. Compute the global date range from the entire dataset.
-			if (!globalDateRangeSet) {
-				const globalDates = [];
-				data.forEach(row => {
-					if (row.requested_datetime) {
-						// Parse the date without filtering out any rows due to location.
-						const dt = moment(row.requested_datetime);
-						if (dt.isValid()) {
-							globalDates.push(dt);
+			// Create markers layer and add it by default
+			const markersGroup = L.layerGroup().addTo(map);
+			// Listen for marker toggle changes
+			document
+				.getElementById("toggleMarkers")
+				.addEventListener("change", function (e) {
+					if (this.checked) {
+						markersGroup.addTo(map);
+						// Add the legend if it doesn't already exist.
+						if (!map.legend) {
+							addLegend();
+						}
+					} else {
+						map.removeLayer(markersGroup);
+						// Remove the legend if it exists.
+						if (map.legend) {
+							map.legend.remove();
+							map.legend = null;
 						}
 					}
 				});
-				if (globalDates.length > 0) {
-					// Use the earliest and latest dates from the global dataset.
-					startDate = moment.min(globalDates).clone().startOf('day');
-					endDate = moment.max(globalDates).clone().endOf('day');
-					// Force the current date to be the start date.
-					currentDate = startDate.clone();
 
-					// Update animation controller with the global date range.
-					animationController.setDateRange(startDate, endDate, currentDate);
-					const slider = document.getElementById('timeSlider');
-					slider.min = 0;
-					slider.max = endDate.diff(startDate, 'days');
-					slider.value = 0;  // Ensures the slider starts at the earliest date.
+			// Map to store reports by location
+			const reportsByLocation = new Map();
+			// Animation variables
+			let allReports = [];
+			let startDate = null;
+			let endDate = null;
+			let currentDate = null;
 
-					// Always update the end date display.
-					document.getElementById('endDate').textContent = endDate.format('MMM D, YYYY');
+			// Update UI with current radius
+			const initialRadius = parseFloat(document.getElementById("radiusSlider").value);
+			document.getElementById("radiusValue").textContent = initialRadius.toFixed(2);
 
-					globalDateRangeSet = true;
+			// Function to check if a point is within radius of center
+			function isWithinRadius(lat, lng) {
+				if (RADIUS_MILES === -1) {
+					return true;
 				}
+				const center = L.latLng(CENTER_LAT, CENTER_LNG);
+				const point = L.latLng(lat, lng);
+				return center.distanceTo(point) <= RADIUS_METERS;
 			}
 
-			// 2. Process data for visualization using the current map radius.
-			// This block filters based on the location using isWithinRadius.
-			data.forEach(row => {
-				if (row.lat && row.long && row.requested_datetime) {
-					const lat = parseFloat(row.lat);
-					const lng = parseFloat(row.long);
-					if (!isNaN(lat) && !isNaN(lng) && isWithinRadius(lat, lng)) {
-						const date = moment(row.requested_datetime);
-						if (date.isValid()) {
-							// Use address-based grouping if enabled; otherwise, assign a unique key
-							let locationKey;
-							if (groupByAddress && row.address) {
-								locationKey = row.address.trim().toLowerCase();
-							} else {
-								locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
-							}
+			// Removed file input event listener
 
-							if (!reportsByLocation.has(locationKey)) {
-								reportsByLocation.set(locationKey, {
-									lat: lat,
-									lng: lng,
-									address: row.address || '',
-									reports: [],
-									latestDate: null
-								});
-							}
-							const report = { date: date, locationKey: locationKey, data: row };
-							const locationData = reportsByLocation.get(locationKey);
-							locationData.reports.push(report);
-							if (!locationData.latestDate || date > locationData.latestDate) {
-								locationData.latestDate = date;
-							}
-							allReports.push(report);
-						}
-					}
+			// Radius slider event listener
+			document.getElementById("radiusSlider").addEventListener("input", function (e) {
+				RADIUS_MILES = parseFloat(e.target.value);
+				if (RADIUS_MILES >= 3.1) {
+					document.getElementById("radiusValue").textContent = "MAX";
+					RADIUS_MILES = -1;
+					radiusCircle.setStyle({ opacity: 0, fillOpacity: 0 });
+				} else {
+					document.getElementById("radiusValue").textContent = RADIUS_MILES.toFixed(2);
+					RADIUS_METERS = RADIUS_MILES * 1609.34;
+					radiusCircle.setRadius(RADIUS_METERS);
+					radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0.0 });
+				}
+				if (csvData && csvData.length > 0) {
+					processData(csvData);
 				}
 			});
 
-
-			allReports.sort((a, b) => a.date - b.date);
-
-			// 3. Visualize markers and update other UI elements using the pre-established current date.
-			visualizeDataAtDate(animationController.currentDate);
-			updateYearlyChart(animationController.currentDate);
-
-			setTimeout(() => {
-				map.invalidateSize();
-			}, 100);
-		}
-
-
-
-       function addLegend() {
-			if (map.legend) {
-				map.legend.remove();
-			}
-			const legend = L.control({position: 'bottomright'});
-			legend.onAdd = function (map) {
-				const div = L.DomUtil.create('div', 'legend');
-				div.innerHTML = '<h4>Legend</h4>' +
-					'<i style="background:#e74c3c; border-radius:50%; width:5px; height:5px;"></i> 1 needle report<br>' +
-					'<i style="background:#e74c3c; border-radius:50%; width:15px; height:15px;"></i> Multiple reports<br>' +
-					'<i style="background:#e74c3c; border-radius:50%; width:25px; height:25px;"></i> Many reports<br>' +
-					'<hr>' +
-					'<i style="background:#e74c3c; opacity:1.0;"></i> Recent<br>' +
-					'<i style="background:#e74c3c; opacity:0.6;"></i> 6 months old<br>' +
-					'<i style="background:#e74c3c; opacity:0.2;"></i> 12+ months old';
-				return div;
-			};
-			legend.addTo(map);
-			map.legend = legend;
-		}
-
-        
-        function loadSampleData() {
-            const currentDate = moment();
-            const sampleData = [];
-            function randomDate(start, end) {
-                return moment(start.valueOf() + Math.random() * (end.valueOf() - start.valueOf()));
-            }
-            const locations = [];
-            for (let i = 0; i < 5; i++) {
-                let pointLat, pointLng;
-                if (RADIUS_MILES === -1) {
-                    const randomDistance = Math.random() * 8000;
-                    const angle = Math.random() * 2 * Math.PI;
-                    pointLat = CENTER_LAT + (randomDistance / 111111) * Math.cos(angle);
-                    pointLng = CENTER_LNG + (randomDistance / (111111 * Math.cos(CENTER_LAT * (Math.PI / 180)))) * Math.sin(angle);
-                } else {
-                    const angle = Math.random() * 2 * Math.PI;
-                    const distance = Math.sqrt(Math.random()) * RADIUS_METERS;
-                    pointLat = CENTER_LAT + (distance / 111111) * Math.cos(angle);
-                    pointLng = CENTER_LNG + (distance / (111111 * Math.cos(CENTER_LAT * (Math.PI / 180)))) * Math.sin(angle);
-                }
-                locations.push({
-                    lat: pointLat,
-                    lng: pointLng,
-                    count: Math.floor(Math.random() * 13) + 3
-                });
-            }
-            locations.push({
-                lat: CENTER_LAT + (RADIUS_METERS * 0.3 / 111111),
-                lng: CENTER_LNG + (RADIUS_METERS * 0.3 / (111111 * Math.cos(CENTER_LAT * (Math.PI / 180)))),
-                count: 12
-            });
-            const statuses = ['Open', 'In Progress', 'Closed'];
-            const closureReasons = ['Cleaned', 'Item(s) Removed', 'Not Found', 'Referred to Another Department'];
-            const neighborhoods = ['Mission Hill', 'Roxbury', 'Jamaica Plain'];
-            locations.forEach(loc => {
-                for (let i = 0; i < loc.count; i++) {
-                    let reportDate;
-                    const dateBias = Math.random();
-                    if (dateBias < 0.5) {
-                        reportDate = randomDate(moment().subtract(6, 'months'), moment());
-                    } else if (dateBias < 0.8) {
-                        reportDate = randomDate(moment().subtract(12, 'months'), moment().subtract(6, 'months'));
-                    } else {
-                        reportDate = randomDate(moment().subtract(14, 'months'), moment().subtract(12, 'months'));
-                    }
-                    const latVariation = (Math.random() - 0.5) * 0.0002;
-                    const lngVariation = (Math.random() - 0.5) * 0.0002;
-                    const status = statuses[Math.floor(Math.random() * statuses.length)];
-                    const closureReason = status === 'Closed' ? 
-                        closureReasons[Math.floor(Math.random() * closureReasons.length)] : '';
-                    const neighborhood = neighborhoods[Math.floor(Math.random() * neighborhoods.length)];
-                    sampleData.push({
-                        latitude: (loc.lat + latVariation).toFixed(6),
-                        longitude: (loc.lng + lngVariation).toFixed(6),
-                        requested_datetime: reportDate.format('M/D/YYYY h:mm'),
-                        case_type: 'Needle Pickup',
-                        case_status: status,
-                        closure_reason: closureReason,
-                        neighborhood: neighborhood
-                    });
-                }
-            });
-            processData(sampleData);
-        }
-
-        // Animation Controller Class (unchanged)
-        class AnimationController {
-            constructor(map, options = {}) {
-                this.map = map;
-                this.markersGroup = options.markersGroup || L.layerGroup().addTo(map);
-                this.updateInterval = options.updateInterval || 50;
-                this.dayTickInterval = options.dayTickInterval || 16;
-                this.isPlaying = false;
-                this.startDate = null;
-                this.endDate = null;
-                this.currentDate = null;
-                this.animationSpeed = options.initialSpeed || 1;
-                this.visualUpdateTimer = null;
-                this.dayTickTimer = null;
-                this.lastFpsUpdate = 0;
-                this.frameCount = 0;
-                this.fps = 0;
-                this.onVisualize = options.onVisualize || (() => {});
-                this.onDateUpdate = options.onDateUpdate || (() => {});
-                this.onComplete = options.onComplete || (() => {});
-                this.debug = options.debug || false;
-            }
-            setDateRange(startDate, endDate, currentDate = null) {
-                this.startDate = moment(startDate);
-                this.endDate = moment(endDate);
-                this.currentDate = currentDate ? moment(currentDate) : moment(startDate);
-                this.updateDateDisplay();
-                this.visualize();
-                if (this.debug) {
-                    console.log('Animation dates set:', {
-                        start: this.startDate.format('YYYY-MM-DD'),
-                        end: this.endDate.format('YYYY-MM-DD'),
-                        current: this.currentDate.format('YYYY-MM-DD')
-                    });
-                }
-                return this;
-            }
-            setSpeed(speed) {
-                this.animationSpeed = speed;
-                if (this.isPlaying) {
-                    this.pause();
-                    this.play();
-                }
-                return this;
-            }
-            jumpToDate(date) {
-                this.currentDate = moment(date);
-                if (this.currentDate < this.startDate) {
-                    this.currentDate = moment(this.startDate);
-                }
-                if (this.currentDate > this.endDate) {
-                    this.currentDate = moment(this.endDate);
-                }
-                this.updateDateDisplay();
-                this.visualize();
-                return this;
-            }
-            advanceByDays(days) {
-                this.currentDate.add(days, 'days');
-                if (this.currentDate > this.endDate) {
-                    this.currentDate = moment(this.endDate);
-                    this.pause();
-                    this.onComplete();
-                }
-                this.updateDateDisplay();
-                return this;
-            }
-            play() {
-                if (this.isPlaying) return this;
-                if (!this.startDate || !this.endDate) {
-                    console.error('Cannot start animation: dates not set');
-                    return this;
-                }
-                this.isPlaying = true;
-                document.body.classList.add('animation-active');
-                this.lastVisualUpdate = performance.now();
-                this.visualUpdateTimer = setInterval(() => {
-                    if (!document.hidden) {
-                        this.visualize();
-                        const now = performance.now();
-                        this.frameCount++;
-                        if (now - this.lastFpsUpdate > 1000) {
-                            this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsUpdate));
-                            this.frameCount = 0;
-                            this.lastFpsUpdate = now;
-                            if (this.debug) {
-                                console.log(`Animation FPS: ${this.fps}`);
-                            }
-                        }
-                    }
-                }, this.updateInterval);
-                this.lastDayTick = performance.now();
-                this.accumulatedTime = 0;
-                this.dayTickTimer = setInterval(() => {
-                    if (document.hidden) return;
-                    const now = performance.now();
-                    const elapsed = now - this.lastDayTick;
-                    this.lastDayTick = now;
-                    this.accumulatedTime += elapsed;
-                    const msPerDay = 1000 / this.animationSpeed;
-                    if (this.accumulatedTime >= msPerDay) {
-                        const daysToAdvance = this.accumulatedTime / msPerDay;
-                        this.advanceByDays(daysToAdvance);
-                        this.accumulatedTime = 0;
-                    }
-                }, this.dayTickInterval);
-                return this;
-            }
-            pause() {
-                if (!this.isPlaying) return this;
-                this.isPlaying = false;
-                document.body.classList.remove('animation-active');
-                clearInterval(this.visualUpdateTimer);
-                clearInterval(this.dayTickTimer);
-                return this;
-            }
-            restart() {
-                this.pause();
-                this.jumpToDate(this.startDate);
-                return this;
-            }
-            visualize() {
-                this.onVisualize(this.currentDate);
-                return this;
-            }
-            updateDateDisplay() {
-                this.onDateUpdate(this.currentDate);
-                return this;
-            }
-            getProgress() {
-                if (!this.startDate || !this.endDate) return 0;
-                const totalDays = this.endDate.diff(this.startDate, 'days');
-                const elapsedDays = this.currentDate.diff(this.startDate, 'days');
-                return Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
-            }
-        }
-
-        let yearlyReportsChart = null;
-        function initializeYearlyChart() {
-            const chartCanvas = document.getElementById('yearlyChart');
-            if (!chartCanvas) {
-                console.error("Chart canvas element not found!");
-                return null;
-            }
-            if (yearlyReportsChart) {
-                yearlyReportsChart.destroy();
-            }
-            try {
-                yearlyReportsChart = new Chart(chartCanvas, {
-                    type: 'bar',
-                    data: {
-                        labels: [],
-                        datasets: [{
-                            label: 'Number of Reports',
-                            data: [],
-                            backgroundColor: 'rgba(231, 76, 60, 0.7)',
-                            borderColor: 'rgba(192, 57, 43, 1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Number of Reports'
-                                },
-                                ticks: {
-                                    precision: 0
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Year'
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    title: function(tooltipItems) {
-                                        return 'Year: ' + tooltipItems[0].label;
-                                    },
-                                    label: function(context) {
-                                        return 'Reports: ' + context.raw;
-                                    }
-                                }
-                            }
-                        },
-                        animation: {
-                            duration: 500
-                        }
-                    }
-                });
-                return yearlyReportsChart;
-            } catch (error) {
-                console.error("Error initializing chart:", error);
-                return null;
-            }
-        }
-        
-        function updateYearlyChart(targetDate) {
-            if (!allReports || allReports.length === 0) {
-                return;
-            }
-            const reportsToDate = allReports.filter(report => report.date <= targetDate);
-            const yearCounts = {};
-            reportsToDate.forEach(report => {
-                const year = report.date.year();
-                yearCounts[year] = (yearCounts[year] || 0) + 1;
-            });
-            const years = Object.keys(yearCounts).sort();
-            const counts = years.map(year => yearCounts[year]);
-            if (!yearlyReportsChart) {
-                yearlyReportsChart = initializeYearlyChart();
-            }
-            yearlyReportsChart.data.labels = years;
-            yearlyReportsChart.data.datasets[0].data = counts;
-            const isAnimating = animationController && animationController.isPlaying;
-            yearlyReportsChart.options.animation.duration = isAnimating ? 0 : 500;
-            yearlyReportsChart.update('none');
-        }
-        
-		function updateDetailedInfoPanel(locationData, targetDate) {
-			// Determine the header text: address (if available) or coordinates.
-			const headerText = locationData.address
-				? locationData.address
-				: (`Coordinates: ${locationData.lat}, ${locationData.lng}`);
-
-			// Build header HTML, including total reports.
-			const headerHTML = `<h4 style="margin:0;">${headerText}</h4>`;
-
-			// Filter reports to only include those on or before the targetDate.
-			const filteredReports = locationData.reports.filter(report => report.date <= targetDate);
-
-			// Sort reports in reverse chronological order.
-			const sortedReports = filteredReports.slice().sort((a, b) => b.date - a.date);
-			const newestReport = sortedReports[0];
-			const oldestReport = sortedReports[sortedReports.length - 1];
-			// Build the detailed report list.
-			let listHTML = '';
-			sortedReports.forEach(report => {
-				listHTML += `<div class="report-item">
-					 <div><strong>${report.date.format('MMM D, YYYY h:mm A')}</strong></div>`;
-				if (report.data.description) {
-					listHTML += `<div>${report.data.description}</div>`;
+			map.on("baselayerchange", function (event) {
+				if (event.name === "Dark") {
+					// Switch the page to dark mode
+					document.body.classList.add("dark-mode");
+				} else {
+					// Switch the page back to light mode
+					document.body.classList.remove("dark-mode");
 				}
-				if (report.data.media_url && report.data.media_url.trim() !== "") {
-					// The onclick calls the full-screen image popup.
-					// For the full-screen popup, pass the headerText and the formatted date.
-					listHTML += `<div>
+			});
+			// Geocoding functions
+
+			// Function to geocode an address using OpenStreetMap Nominatim
+			function geocodeAddress(address) {
+				const statusElement = document.getElementById("geocodeStatus");
+				statusElement.textContent = "Searching for address...";
+				statusElement.style.color = "#666";
+
+				// Add Boston, MA to the search query if not already present
+				let searchQuery = address;
+				if (
+					!searchQuery.toLowerCase().includes("boston") &&
+					!searchQuery.toLowerCase().includes("ma")
+				) {
+					searchQuery += " Boston, MA";
+				}
+
+				// Build the Nominatim API URL
+				const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=jsonv2&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1`;
+
+				fetch(nominatimUrl, {
+					headers: { "User-Agent": "Boston311Visualization/1.0" },
+				})
+					.then((response) => {
+						if (!response.ok) {
+							throw new Error(`Network error: ${response.status}`);
+						}
+						return response.json();
+					})
+					.then((data) => {
+						if (data && data.length > 0) {
+							const result = data[0];
+							const lat = parseFloat(result.lat);
+							const lng = parseFloat(result.lon);
+
+							let displayName = result.display_name;
+							if (displayName.length > 60) {
+								displayName = displayName.substring(0, 60) + "...";
+							}
+
+							CENTER_LAT = lat;
+							CENTER_LNG = lng;
+
+							statusElement.textContent = `Found: ${displayName}`;
+							statusElement.style.color = "green";
+
+							map.setView([lat, lng], 16);
+							radiusCircle.setLatLng([lat, lng]);
+							centerMarker
+								.setLatLng([lat, lng])
+								.bindPopup(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+
+							if (csvData && csvData.length > 0) {
+								processData(csvData);
+							}
+							return;
+						}
+						checkLocalDatabase(address, statusElement);
+					})
+					.catch((error) => {
+						console.error("Geocoding error:", error);
+						tryJSONPNominatim(searchQuery, statusElement);
+					});
+			}
+
+			// JSONP fallback for Nominatim (to bypass CORS issues)
+			function tryJSONPNominatim(searchQuery, statusElement) {
+				const callbackName = "nominatimCallback_" + Math.floor(Math.random() * 1000000);
+				const script = document.createElement("script");
+				const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1&json_callback=${callbackName}`;
+
+				window[callbackName] = function (data) {
+					document.head.removeChild(script);
+					if (data && data.length > 0) {
+						const result = data[0];
+						const lat = parseFloat(result.lat);
+						const lng = parseFloat(result.lon);
+
+						let displayName = result.display_name;
+						if (displayName.length > 60) {
+							displayName = displayName.substring(0, 60) + "...";
+						}
+
+						CENTER_LAT = lat;
+						CENTER_LNG = lng;
+
+						statusElement.textContent = `Found: ${displayName}`;
+						statusElement.style.color = "green";
+
+						map.setView([lat, lng], 16);
+						radiusCircle.setLatLng([lat, lng]);
+						centerMarker
+							.setLatLng([lat, lng])
+							.bindPopup(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+
+						if (csvData && csvData.length > 0) {
+							processData(csvData);
+						}
+					} else {
+						checkLocalDatabase(searchQuery, statusElement);
+					}
+					delete window[callbackName];
+				};
+
+				script.src = url;
+				document.head.appendChild(script);
+
+				setTimeout(function () {
+					if (window[callbackName]) {
+						delete window[callbackName];
+						if (document.head.contains(script)) {
+							document.head.removeChild(script);
+						}
+						checkLocalDatabase(searchQuery, statusElement);
+					}
+				}, 5000);
+			}
+
+			// Fallback to local database for Boston locations
+			function checkLocalDatabase(address, statusElement) {
+				const bostonLocations = {
+					"mission hill": {
+						lat: 42.3295,
+						lng: -71.1045,
+						name: "Mission Hill, Boston, MA",
+					},
+					roxbury: { lat: 42.3298, lng: -71.0892, name: "Roxbury, Boston, MA" },
+					"jamaica plain": {
+						lat: 42.3066,
+						lng: -71.1152,
+						name: "Jamaica Plain, Boston, MA",
+					},
+					fenway: { lat: 42.3429, lng: -71.1003, name: "Fenway, Boston, MA" },
+					"boston common": {
+						lat: 42.3554,
+						lng: -71.066,
+						name: "Boston Common, Boston, MA",
+					},
+					dorchester: { lat: 42.2933, lng: -71.067, name: "Dorchester, Boston, MA" },
+					"south boston": { lat: 42.3359, lng: -71.0328, name: "South Boston, MA" },
+					brighton: { lat: 42.3464, lng: -71.1627, name: "Brighton, Boston, MA" },
+					allston: { lat: 42.3509, lng: -71.1324, name: "Allston, Boston, MA" },
+					"beacon hill": { lat: 42.3589, lng: -71.0702, name: "Beacon Hill, Boston, MA" },
+					"back bay": { lat: 42.3503, lng: -71.081, name: "Back Bay, Boston, MA" },
+					"downtown boston": { lat: 42.3601, lng: -71.0589, name: "Downtown Boston, MA" },
+				};
+
+				const bostonStreets = {
+					"south huntington ave": {
+						lat: 42.3238,
+						lng: -71.1113,
+						name: "South Huntington Avenue, Boston, MA",
+					},
+					"s huntington ave": {
+						lat: 42.3238,
+						lng: -71.1113,
+						name: "South Huntington Avenue, Boston, MA",
+					},
+					"huntington ave": {
+						lat: 42.3372,
+						lng: -71.0957,
+						name: "Huntington Avenue, Boston, MA",
+					},
+					"massachusetts ave": {
+						lat: 42.3418,
+						lng: -71.1021,
+						name: "Massachusetts Avenue, Boston, MA",
+					},
+					"mass ave": {
+						lat: 42.3418,
+						lng: -71.1021,
+						name: "Massachusetts Avenue, Boston, MA",
+					},
+					"commonwealth ave": {
+						lat: 42.3503,
+						lng: -71.0923,
+						name: "Commonwealth Avenue, Boston, MA",
+					},
+					"comm ave": {
+						lat: 42.3503,
+						lng: -71.0923,
+						name: "Commonwealth Avenue, Boston, MA",
+					},
+				};
+
+				const cleanAddress = address.toLowerCase().trim();
+				for (const [key, location] of Object.entries(bostonLocations)) {
+					if (cleanAddress.includes(key)) {
+						updateMapLocation(location.lat, location.lng, location.name, statusElement);
+						return;
+					}
+				}
+				for (const [streetKey, location] of Object.entries(bostonStreets)) {
+					if (cleanAddress.includes(streetKey)) {
+						updateMapLocation(location.lat, location.lng, location.name, statusElement);
+						return;
+					}
+				}
+
+				statusElement.textContent =
+					"Address not found. Try specifying a Boston location like 'South Huntington Ave, Boston'.";
+				statusElement.style.color = "red";
+			}
+
+			// Helper function to update the map based on a found location
+			function updateMapLocation(lat, lng, displayName, statusElement) {
+				CENTER_LAT = lat;
+				CENTER_LNG = lng;
+				statusElement.textContent = `Found: ${displayName}`;
+				statusElement.style.color = "green";
+				map.setView([CENTER_LAT, CENTER_LNG], 16);
+				radiusCircle.setLatLng([CENTER_LAT, CENTER_LNG]);
+				centerMarker
+					.setLatLng([CENTER_LAT, CENTER_LNG])
+					.bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`);
+				if (csvData && csvData.length > 0) {
+					processData(csvData);
+				}
+			}
+
+			// Attach event listeners for address search
+			document.getElementById("searchAddress").addEventListener("click", function () {
+				const address = document.getElementById("addressInput").value.trim();
+				if (address) {
+					geocodeAddress(address);
+				}
+			});
+			document
+				.getElementById("addressInput")
+				.addEventListener("keypress", function (e) {
+					if (e.key === "Enter") {
+						const address = this.value.trim();
+						if (address) {
+							geocodeAddress(address);
+						}
+					}
+				});
+
+			function processCSV(file) {
+				// Not used anymore, as we load CSV directly via needles_all.csv
+				Papa.parse(file, {
+					header: true,
+					complete: function (results) {
+						csvData = results.data;
+						processData(csvData);
+					},
+					error: function (error) {
+						console.error("Error parsing CSV:", error);
+						alert("Error parsing CSV file. Please check the format.");
+					},
+				});
+			}
+
+			function showFullSizeImage(mediaUrl, description, titleText) {
+				// Create an overlay covering the entire viewport
+				var overlay = document.createElement("div");
+				overlay.id = "imageOverlay";
+				overlay.style.position = "fixed";
+				overlay.style.top = 0;
+				overlay.style.left = 0;
+				overlay.style.width = "100%";
+				overlay.style.height = "100%";
+				overlay.style.backgroundColor = "rgba(0,0,0,0.8)";
+				overlay.style.display = "flex";
+				overlay.style.justifyContent = "center";
+				overlay.style.alignItems = "center";
+				overlay.style.zIndex = 10000;
+
+				// Create a container for the popup content
+				var container = document.createElement("div");
+				container.style.position = "relative";
+				container.style.backgroundColor = "#fff";
+				container.style.padding = "15px";
+				container.style.maxWidth = "90vw";
+				container.style.maxHeight = "90vh";
+				container.style.overflow = "auto";
+				container.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
+
+				// Create a title element (includes address or coordinates and date/time)
+				var titleEl = document.createElement("h2");
+				titleEl.style.marginTop = "0";
+				titleEl.style.fontSize = "1.2em";
+				titleEl.style.color = "black";
+				titleEl.textContent = titleText;
+				container.appendChild(titleEl);
+
+				// Create the full-size image element
+				var imgEl = document.createElement("img");
+				imgEl.src = mediaUrl;
+				imgEl.style.width = "100%";
+				// Limit the image height so the overall container stays within 90vh.
+				imgEl.style.maxHeight = "calc(90vh - 150px)"; // 150px accounts for header, caption, padding, etc.
+				imgEl.style.objectFit = "contain"; // Scale down without distortion.
+				imgEl.style.display = "block";
+				imgEl.style.margin = "10px 0";
+				container.appendChild(imgEl);
+
+				// Create the caption element (the description)
+				var captionEl = document.createElement("p");
+				captionEl.style.fontSize = "1em";
+				captionEl.style.color = "#333";
+				captionEl.textContent = description || "";
+				container.appendChild(captionEl);
+
+				// Create a close button (×)
+				var closeButton = document.createElement("span");
+				closeButton.textContent = "\u00D7";
+				closeButton.style.position = "absolute";
+				closeButton.style.top = "10px";
+				closeButton.style.right = "15px";
+				closeButton.style.fontSize = "1.5em";
+				closeButton.style.cursor = "pointer";
+				closeButton.style.color = "#333";
+				container.appendChild(closeButton);
+
+				// Append the container to the overlay and the overlay to the document
+				overlay.appendChild(container);
+				document.body.appendChild(overlay);
+
+				// Function to remove the overlay
+				function removeOverlay() {
+					if (document.body.contains(overlay)) {
+						document.body.removeChild(overlay);
+					}
+				}
+
+				// Close when the close button is clicked
+				closeButton.addEventListener("click", removeOverlay);
+				// Also close if the user clicks outside the container
+				overlay.addEventListener("click", function (e) {
+					if (e.target === overlay) {
+						removeOverlay();
+					}
+				});
+			}
+
+			function processData(data) {
+				// Clear previously rendered layers and reports
+				markersGroup.clearLayers();
+				reportsByLocation.clear();
+				allReports = [];
+
+				const groupByAddress = document.getElementById("toggleMarkerGrouping").checked;
+				let uniqueCounter = 0; // for non-grouped markers
+
+				// 1. Compute the global date range from the entire dataset.
+				if (!globalDateRangeSet) {
+					const globalDates = [];
+					data.forEach((row) => {
+						if (row.requested_datetime) {
+							// Parse the date without filtering out any rows due to location.
+							const dt = moment(row.requested_datetime);
+							if (dt.isValid()) {
+								globalDates.push(dt);
+							}
+						}
+					});
+					if (globalDates.length > 0) {
+						// Use the earliest and latest dates from the global dataset.
+						startDate = moment.min(globalDates).clone().startOf("day");
+						endDate = moment.max(globalDates).clone().endOf("day");
+						// Force the current date to be the start date.
+						currentDate = startDate.clone();
+
+						// Update animation controller with the global date range.
+						animationController.setDateRange(startDate, endDate, currentDate);
+						const slider = document.getElementById("timeSlider");
+						slider.min = 0;
+						slider.max = endDate.diff(startDate, "days");
+						slider.value = 0; // Ensures the slider starts at the earliest date.
+
+						// Always update the end date display.
+						document.getElementById("endDate").textContent = endDate.format("MMM D, YYYY");
+
+						globalDateRangeSet = true;
+					}
+				}
+
+				// 2. Process data for visualization using the current map radius.
+				// This block filters based on the location using isWithinRadius.
+				data.forEach((row) => {
+					if (row.lat && row.long && row.requested_datetime) {
+						const lat = parseFloat(row.lat);
+						const lng = parseFloat(row.long);
+						if (!isNaN(lat) && !isNaN(lng) && isWithinRadius(lat, lng)) {
+							const date = moment(row.requested_datetime);
+							if (date.isValid()) {
+								// Use address-based grouping if enabled; otherwise, assign a unique key
+								let locationKey;
+								if (groupByAddress && row.address) {
+									locationKey = row.address.trim().toLowerCase();
+								} else {
+									locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
+								}
+
+								if (!reportsByLocation.has(locationKey)) {
+									reportsByLocation.set(locationKey, {
+										lat: lat,
+										lng: lng,
+										address: row.address || "",
+										reports: [],
+										latestDate: null,
+									});
+								}
+								const report = { date: date, locationKey: locationKey, data: row };
+								const locationData = reportsByLocation.get(locationKey);
+								locationData.reports.push(report);
+								if (!locationData.latestDate || date > locationData.latestDate) {
+									locationData.latestDate = date;
+								}
+								allReports.push(report);
+							}
+						}
+					}
+				});
+
+				allReports.sort((a, b) => a.date - b.date);
+
+				// 3. Visualize markers and update other UI elements using the pre-established current date.
+				visualizeDataAtDate(animationController.currentDate);
+				updateYearlyChart(animationController.currentDate);
+
+				setTimeout(() => {
+					map.invalidateSize();
+				}, 100);
+			}
+
+			function addLegend() {
+				if (map.legend) {
+					map.legend.remove();
+				}
+				const legend = L.control({ position: "bottomright" });
+				legend.onAdd = function (map) {
+					const div = L.DomUtil.create("div", "legend");
+					div.innerHTML =
+						"<h4>Legend</h4>" +
+						'<i style="background:#e74c3c; border-radius:50%; width:5px; height:5px;"></i> 1 needle report<br>' +
+						'<i style="background:#e74c3c; border-radius:50%; width:15px; height:15px;"></i> Multiple reports<br>' +
+						'<i style="background:#e74c3c; border-radius:50%; width:25px; height:25px;"></i> Many reports<br>' +
+						"<hr>" +
+						'<i style="background:#e74c3c; opacity:1.0;"></i> Recent<br>' +
+						'<i style="background:#e74c3c; opacity:0.6;"></i> 6 months old<br>' +
+						'<i style="background:#e74c3c; opacity:0.2;"></i> 12+ months old';
+					return div;
+				};
+				legend.addTo(map);
+				map.legend = legend;
+			}
+
+			function loadSampleData() {
+				const currentDate = moment();
+				const sampleData = [];
+				function randomDate(start, end) {
+					return moment(
+						start.valueOf() + Math.random() * (end.valueOf() - start.valueOf()),
+					);
+				}
+				const locations = [];
+				for (let i = 0; i < 5; i++) {
+					let pointLat, pointLng;
+					if (RADIUS_MILES === -1) {
+						const randomDistance = Math.random() * 8000;
+						const angle = Math.random() * 2 * Math.PI;
+						pointLat = CENTER_LAT + (randomDistance / 111111) * Math.cos(angle);
+						pointLng =
+							CENTER_LNG +
+							(randomDistance / (111111 * Math.cos(CENTER_LAT * (Math.PI / 180)))) *
+								Math.sin(angle);
+					} else {
+						const angle = Math.random() * 2 * Math.PI;
+						const distance = Math.sqrt(Math.random()) * RADIUS_METERS;
+						pointLat = CENTER_LAT + (distance / 111111) * Math.cos(angle);
+						pointLng =
+							CENTER_LNG +
+							(distance / (111111 * Math.cos(CENTER_LAT * (Math.PI / 180)))) *
+								Math.sin(angle);
+					}
+					locations.push({
+						lat: pointLat,
+						lng: pointLng,
+						count: Math.floor(Math.random() * 13) + 3,
+					});
+				}
+				locations.push({
+					lat: CENTER_LAT + (RADIUS_METERS * 0.3) / 111111,
+					lng:
+						CENTER_LNG +
+						(RADIUS_METERS * 0.3) / (111111 * Math.cos(CENTER_LAT * (Math.PI / 180))),
+					count: 12,
+				});
+				const statuses = ["Open", "In Progress", "Closed"];
+				const closureReasons = [
+					"Cleaned",
+					"Item(s) Removed",
+					"Not Found",
+					"Referred to Another Department",
+				];
+				const neighborhoods = ["Mission Hill", "Roxbury", "Jamaica Plain"];
+				locations.forEach((loc) => {
+					for (let i = 0; i < loc.count; i++) {
+						let reportDate;
+						const dateBias = Math.random();
+						if (dateBias < 0.5) {
+							reportDate = randomDate(moment().subtract(6, "months"), moment());
+						} else if (dateBias < 0.8) {
+							reportDate = randomDate(
+								moment().subtract(12, "months"),
+								moment().subtract(6, "months"),
+							);
+						} else {
+							reportDate = randomDate(
+								moment().subtract(14, "months"),
+								moment().subtract(12, "months"),
+							);
+						}
+						const latVariation = (Math.random() - 0.5) * 0.0002;
+						const lngVariation = (Math.random() - 0.5) * 0.0002;
+						const status = statuses[Math.floor(Math.random() * statuses.length)];
+						const closureReason =
+							status === "Closed"
+								? closureReasons[Math.floor(Math.random() * closureReasons.length)]
+								: "";
+						const neighborhood =
+							neighborhoods[Math.floor(Math.random() * neighborhoods.length)];
+						sampleData.push({
+							latitude: (loc.lat + latVariation).toFixed(6),
+							longitude: (loc.lng + lngVariation).toFixed(6),
+							requested_datetime: reportDate.format("M/D/YYYY h:mm"),
+							case_type: "Needle Pickup",
+							case_status: status,
+							closure_reason: closureReason,
+							neighborhood: neighborhood,
+						});
+					}
+				});
+				processData(sampleData);
+			}
+
+			// Animation Controller Class (unchanged)
+			class AnimationController {
+				constructor(map, options = {}) {
+					this.map = map;
+					this.markersGroup = options.markersGroup || L.layerGroup().addTo(map);
+					this.updateInterval = options.updateInterval || 50;
+					this.dayTickInterval = options.dayTickInterval || 16;
+					this.isPlaying = false;
+					this.startDate = null;
+					this.endDate = null;
+					this.currentDate = null;
+					this.animationSpeed = options.initialSpeed || 1;
+					this.visualUpdateTimer = null;
+					this.dayTickTimer = null;
+					this.lastFpsUpdate = 0;
+					this.frameCount = 0;
+					this.fps = 0;
+					this.onVisualize = options.onVisualize || (() => {});
+					this.onDateUpdate = options.onDateUpdate || (() => {});
+					this.onComplete = options.onComplete || (() => {});
+					this.debug = options.debug || false;
+				}
+				setDateRange(startDate, endDate, currentDate = null) {
+					this.startDate = moment(startDate);
+					this.endDate = moment(endDate);
+					this.currentDate = currentDate ? moment(currentDate) : moment(startDate);
+					this.updateDateDisplay();
+					this.visualize();
+					if (this.debug) {
+						console.log("Animation dates set:", {
+							start: this.startDate.format("YYYY-MM-DD"),
+							end: this.endDate.format("YYYY-MM-DD"),
+							current: this.currentDate.format("YYYY-MM-DD"),
+						});
+					}
+					return this;
+				}
+				setSpeed(speed) {
+					this.animationSpeed = speed;
+					if (this.isPlaying) {
+						this.pause();
+						this.play();
+					}
+					return this;
+				}
+				jumpToDate(date) {
+					this.currentDate = moment(date);
+					if (this.currentDate < this.startDate) {
+						this.currentDate = moment(this.startDate);
+					}
+					if (this.currentDate > this.endDate) {
+						this.currentDate = moment(this.endDate);
+					}
+					this.updateDateDisplay();
+					this.visualize();
+					return this;
+				}
+				advanceByDays(days) {
+					this.currentDate.add(days, "days");
+					if (this.currentDate > this.endDate) {
+						this.currentDate = moment(this.endDate);
+						this.pause();
+						this.onComplete();
+					}
+					this.updateDateDisplay();
+					return this;
+				}
+				play() {
+					if (this.isPlaying) return this;
+					if (!this.startDate || !this.endDate) {
+						console.error("Cannot start animation: dates not set");
+						return this;
+					}
+					this.isPlaying = true;
+					document.body.classList.add("animation-active");
+					this.lastVisualUpdate = performance.now();
+					this.visualUpdateTimer = setInterval(() => {
+						if (!document.hidden) {
+							this.visualize();
+							const now = performance.now();
+							this.frameCount++;
+							if (now - this.lastFpsUpdate > 1000) {
+								this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsUpdate));
+								this.frameCount = 0;
+								this.lastFpsUpdate = now;
+								if (this.debug) {
+									console.log(`Animation FPS: ${this.fps}`);
+								}
+							}
+						}
+					}, this.updateInterval);
+					this.lastDayTick = performance.now();
+					this.accumulatedTime = 0;
+					this.dayTickTimer = setInterval(() => {
+						if (document.hidden) return;
+						const now = performance.now();
+						const elapsed = now - this.lastDayTick;
+						this.lastDayTick = now;
+						this.accumulatedTime += elapsed;
+						const msPerDay = 1000 / this.animationSpeed;
+						if (this.accumulatedTime >= msPerDay) {
+							const daysToAdvance = this.accumulatedTime / msPerDay;
+							this.advanceByDays(daysToAdvance);
+							this.accumulatedTime = 0;
+						}
+					}, this.dayTickInterval);
+					return this;
+				}
+				pause() {
+					if (!this.isPlaying) return this;
+					this.isPlaying = false;
+					document.body.classList.remove("animation-active");
+					clearInterval(this.visualUpdateTimer);
+					clearInterval(this.dayTickTimer);
+					return this;
+				}
+				restart() {
+					this.pause();
+					this.jumpToDate(this.startDate);
+					return this;
+				}
+				visualize() {
+					this.onVisualize(this.currentDate);
+					return this;
+				}
+				updateDateDisplay() {
+					this.onDateUpdate(this.currentDate);
+					return this;
+				}
+				getProgress() {
+					if (!this.startDate || !this.endDate) return 0;
+					const totalDays = this.endDate.diff(this.startDate, "days");
+					const elapsedDays = this.currentDate.diff(this.startDate, "days");
+					return Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+				}
+			}
+
+			let yearlyReportsChart = null;
+			function initializeYearlyChart() {
+				const chartCanvas = document.getElementById("yearlyChart");
+				if (!chartCanvas) {
+					console.error("Chart canvas element not found!");
+					return null;
+				}
+				if (yearlyReportsChart) {
+					yearlyReportsChart.destroy();
+				}
+				try {
+					yearlyReportsChart = new Chart(chartCanvas, {
+						type: "bar",
+						data: {
+							labels: [],
+							datasets: [
+								{
+									label: "Number of Reports",
+									data: [],
+									backgroundColor: "rgba(231, 76, 60, 0.7)",
+									borderColor: "rgba(192, 57, 43, 1)",
+									borderWidth: 1,
+								},
+							],
+						},
+						options: {
+							responsive: true,
+							maintainAspectRatio: false,
+							scales: {
+								y: {
+									beginAtZero: true,
+									title: {
+										display: true,
+										text: "Number of Reports",
+									},
+									ticks: {
+										precision: 0,
+									},
+								},
+								x: {
+									title: {
+										display: true,
+										text: "Year",
+									},
+								},
+							},
+							plugins: {
+								legend: {
+									display: false,
+								},
+								tooltip: {
+									callbacks: {
+										title: function (tooltipItems) {
+											return "Year: " + tooltipItems[0].label;
+										},
+										label: function (context) {
+											return "Reports: " + context.raw;
+										},
+									},
+								},
+							},
+							animation: {
+								duration: 500,
+							},
+						},
+					});
+					return yearlyReportsChart;
+				} catch (error) {
+					console.error("Error initializing chart:", error);
+					return null;
+				}
+			}
+
+			function updateYearlyChart(targetDate) {
+				if (!allReports || allReports.length === 0) {
+					return;
+				}
+				const reportsToDate = allReports.filter((report) => report.date <= targetDate);
+				const yearCounts = {};
+				reportsToDate.forEach((report) => {
+					const year = report.date.year();
+					yearCounts[year] = (yearCounts[year] || 0) + 1;
+				});
+				const years = Object.keys(yearCounts).sort();
+				const counts = years.map((year) => yearCounts[year]);
+				if (!yearlyReportsChart) {
+					yearlyReportsChart = initializeYearlyChart();
+				}
+				yearlyReportsChart.data.labels = years;
+				yearlyReportsChart.data.datasets[0].data = counts;
+				const isAnimating = animationController && animationController.isPlaying;
+				yearlyReportsChart.options.animation.duration = isAnimating ? 0 : 500;
+				yearlyReportsChart.update("none");
+			}
+
+			function updateDetailedInfoPanel(locationData, targetDate) {
+				// Determine the header text: address (if available) or coordinates.
+				const headerText = locationData.address
+					? locationData.address
+					: `Coordinates: ${locationData.lat}, ${locationData.lng}`;
+
+				// Build header HTML, including total reports.
+				const headerHTML = `<h4 style="margin:0;">${headerText}</h4>`;
+
+				// Filter reports to only include those on or before the targetDate.
+				const filteredReports = locationData.reports.filter(
+					(report) => report.date <= targetDate,
+				);
+
+				// Sort reports in reverse chronological order.
+				const sortedReports = filteredReports.slice().sort((a, b) => b.date - a.date);
+				const newestReport = sortedReports[0];
+				const oldestReport = sortedReports[sortedReports.length - 1];
+				// Build the detailed report list.
+				let listHTML = "";
+				sortedReports.forEach((report) => {
+					listHTML += `<div class="report-item">
+					 <div><strong>${report.date.format("MMM D, YYYY h:mm A")}</strong></div>`;
+					if (report.data.description) {
+						listHTML += `<div>${report.data.description}</div>`;
+					}
+					if (report.data.media_url && report.data.media_url.trim() !== "") {
+						// The onclick calls the full-screen image popup.
+						// For the full-screen popup, pass the headerText and the formatted date.
+						listHTML += `<div>
 					   <img src="${report.data.media_url}" alt="Media Image" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer;"
 						onclick='showFullSizeImage(${JSON.stringify(report.data.media_url)}, ${JSON.stringify(report.data.description || "")}, ${JSON.stringify(headerText)} + " - " + ${JSON.stringify(report.date.format("MMM D, YYYY h:mm A"))})'>
 					 </div>`;
-				}
-				listHTML += `</div>`;
-			});
+					}
+					listHTML += `</div>`;
+				});
 
-			return `<div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">${headerHTML}
+				return `<div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">${headerHTML}
 						<p>Total Reports: ${filteredReports.length}</p>
 						<p>
-						Newest: ${newestReport.date.format('MMM D, YYYY h:mm A')}
-						Oldest: ${oldestReport.date.format('MMM D, YYYY h:mm A')}<br>
+						Newest: ${newestReport.date.format("MMM D, YYYY h:mm A")}
+						Oldest: ${oldestReport.date.format("MMM D, YYYY h:mm A")}<br>
               			</p>
 						${listHTML}</div>`;
-		}
+			}
 
-		
-        function visualizeDataAtDate(targetDate) {
-            markersGroup.clearLayers();
-            let activeLocationCount = 0;
-            let recentReportCount = 0;
-            let totalReportCount = 0;
-// Inside your visualizeDataAtDate function for each locationData:
-			reportsByLocation.forEach((locationData, locationKey) => {
-			          const relevantReports = locationData.reports.filter(report => report.date <= targetDate);
+			function visualizeDataAtDate(targetDate) {
+				markersGroup.clearLayers();
+				let activeLocationCount = 0;
+				let recentReportCount = 0;
+				let totalReportCount = 0;
+				// Inside your visualizeDataAtDate function for each locationData:
+				reportsByLocation.forEach((locationData, locationKey) => {
+					const relevantReports = locationData.reports.filter(
+						(report) => report.date <= targetDate,
+					);
 					if (relevantReports.length === 0) return;
 
 					activeLocationCount++; // Increment for each active location
 					totalReportCount += relevantReports.length; // Add to total reports
 
 					// Check for recent reports (30 days)
-					relevantReports.forEach(report => {
-						if (targetDate.diff(report.date, 'days') <= 30) {
+					relevantReports.forEach((report) => {
+						if (targetDate.diff(report.date, "days") <= 30) {
 							recentReportCount++;
 						}
 					});
 
-			  
-			  // Sort reports in ascending order to extract oldest and newest.
-			  relevantReports.sort((a, b) => a.date - b.date);
-			  const oldest = relevantReports[0].date;
-			  const newest = relevantReports[relevantReports.length - 1].date;
-			  
-			  // Use the location address if available; otherwise, use the coordinates.
-			  const headerText = locationData.address || (`Coordinates: ${locationData.lat}, ${locationData.lng}`);
-			  
-			  // Build the summary popup content including the header.
-			  const summaryContent = `<div>
+					// Sort reports in ascending order to extract oldest and newest.
+					relevantReports.sort((a, b) => a.date - b.date);
+					const oldest = relevantReports[0].date;
+					const newest = relevantReports[relevantReports.length - 1].date;
+
+					// Use the location address if available; otherwise, use the coordinates.
+					const headerText =
+						locationData.address || `Coordinates: ${locationData.lat}, ${locationData.lng}`;
+
+					// Build the summary popup content including the header.
+					const summaryContent = `<div>
 				  <h4 style="margin:0; font-size:1.1em;">${headerText}</h4>
 				  <strong>${relevantReports.length} needle report(s)</strong><br>
-				  Oldest: ${oldest.format('MMM D, YYYY h:mm A')}<br>
-				  Newest: ${newest.format('MMM D, YYYY h:mm A')}
+				  Oldest: ${oldest.format("MMM D, YYYY h:mm A")}<br>
+				  Newest: ${newest.format("MMM D, YYYY h:mm A")}
 			  </div>`;
-			  
-			  // Compute fade factor.
-			  const monthsSinceNewest = targetDate.diff(newest, 'months', true);
-			  const opacityFactor = Math.max(0.2, 1 - (monthsSinceNewest / 12));
-			  // Create the marker.
-			  const circle = L.circleMarker([locationData.lat, locationData.lng], {
-				  radius: Math.min(60, Math.max(5, 5 + relevantReports.length * 1.5)),
-				  fillColor: '#e74c3c',
-				  color: '#c0392b',
-				  weight: 1,
-				  opacity: opacityFactor,
-					fillOpacity: opacityFactor
-			  });
-			  
-			  // Bind the summary popup.
-			  circle.bindPopup(summaryContent, {
-				autoPan: false,
-				autoPanPaddingTopLeft: L.point(10, 80),
-				autoPanPaddingBottomRight: L.point(10, 10)
-			  });
-			  
-			circle.on('click', function() {
-				circle.bindPopup(updateDetailedInfoPanel(locationData, animationController.currentDate), {
-					autoPan: false,
-					autoPanPaddingTopLeft: L.point(10, 80),
-					autoPanPaddingBottomRight: L.point(10, 10),
-					maxWidth: "auto" // Let the content determine the width
-				}).openPopup();
-			});
-			  
-			  markersGroup.addLayer(circle);
-			});
 
+					// Compute fade factor.
+					const monthsSinceNewest = targetDate.diff(newest, "months", true);
+					const opacityFactor = Math.max(0.2, 1 - monthsSinceNewest / 12);
+					// Create the marker.
+					const circle = L.circleMarker([locationData.lat, locationData.lng], {
+						radius: Math.min(60, Math.max(5, 5 + relevantReports.length * 1.5)),
+						fillColor: "#e74c3c",
+						color: "#c0392b",
+						weight: 1,
+						opacity: opacityFactor,
+						fillOpacity: opacityFactor,
+					});
 
-            document.getElementById('totalReports').textContent = totalReportCount;
-            document.getElementById('activeLocations').textContent = activeLocationCount;
-            document.getElementById('recentReports').textContent = recentReportCount;
-            const markersToggle = document.getElementById('toggleMarkers');
-			if (markersToggle.checked) {
-				// Only add the legend if it doesn't exist already.
-				if (!document.getElementById('map').querySelector('.legend')) {
-					addLegend();
+					// Bind the summary popup.
+					circle.bindPopup(summaryContent, {
+						autoPan: false,
+						autoPanPaddingTopLeft: L.point(10, 80),
+						autoPanPaddingBottomRight: L.point(10, 10),
+					});
+
+					circle.on("click", function () {
+						circle
+							.bindPopup(
+								updateDetailedInfoPanel(locationData, animationController.currentDate),
+								{
+									autoPan: false,
+									autoPanPaddingTopLeft: L.point(10, 80),
+									autoPanPaddingBottomRight: L.point(10, 10),
+									maxWidth: "auto", // Let the content determine the width
+								},
+							)
+							.openPopup();
+					});
+
+					markersGroup.addLayer(circle);
+				});
+
+				document.getElementById("totalReports").textContent = totalReportCount;
+				document.getElementById("activeLocations").textContent = activeLocationCount;
+				document.getElementById("recentReports").textContent = recentReportCount;
+				const markersToggle = document.getElementById("toggleMarkers");
+				if (markersToggle.checked) {
+					// Only add the legend if it doesn't exist already.
+					if (!document.getElementById("map").querySelector(".legend")) {
+						addLegend();
+					}
+				} else {
+					// If the markers toggle is unchecked, remove any existing legend.
+					if (map.legend) {
+						map.legend.remove();
+						map.legend = null;
+					}
 				}
-			} else {
-				// If the markers toggle is unchecked, remove any existing legend.
-				if (map.legend) {
-					map.legend.remove();
-					map.legend = null;
+				updateYearlyChart(targetDate);
+
+				// --- Heatmap update ---
+				if (document.getElementById("toggleHeatmap").checked) {
+					let heatData = [];
+					allReports.forEach((report) => {
+						if (report.date <= targetDate) {
+							let daysDiff = targetDate.diff(report.date, "days", true);
+							let weight = Math.max(0, 1 - daysDiff / 365);
+							if (weight > 0) {
+								heatData.push([
+									parseFloat(report.data.lat),
+									parseFloat(report.data.long),
+									weight,
+								]);
+							}
+						}
+					});
+					heatLayer.setLatLngs(heatData);
 				}
 			}
-            updateYearlyChart(targetDate);
 
-            // --- Heatmap update ---
-            if (document.getElementById('toggleHeatmap').checked) {
-                let heatData = [];
-                allReports.forEach(report => {
-                    if (report.date <= targetDate) {
-                        let daysDiff = targetDate.diff(report.date, 'days', true);
-                        let weight = Math.max(0, 1 - (daysDiff / 365));
-                        if (weight > 0) {
-                            heatData.push([
-                                parseFloat(report.data.lat),
-                                parseFloat(report.data.long),
-                                weight
-                            ]);
-                        }
-                    }
-                });
-                heatLayer.setLatLngs(heatData);
-            }
-        }
+			const animationController = new AnimationController(map, {
+				markersGroup: markersGroup,
+				initialSpeed: 1,
+				updateInterval: 50,
+				dayTickInterval: 16,
+				debug: false,
+				onVisualize: function (date) {
+					visualizeDataAtDate(date);
+				},
+				onDateUpdate: function (date) {
+					document.getElementById("currentDate").textContent = date.format("MMM D, YYYY");
+					document.getElementById("timeSlider").value = date.diff(
+						animationController.startDate,
+						"days",
+					);
+				},
+				onComplete: function () {
+					document.getElementById("playButton").disabled = false;
+					document.getElementById("pauseButton").disabled = true;
+				},
+			});
 
-        const animationController = new AnimationController(map, {
-            markersGroup: markersGroup,
-            initialSpeed: 1,
-            updateInterval: 50,
-            dayTickInterval: 16,
-            debug: false,
-            onVisualize: function(date) {
-                visualizeDataAtDate(date);
-            },
-            onDateUpdate: function(date) {
-                document.getElementById('currentDate').textContent = date.format('MMM D, YYYY');
-                document.getElementById('timeSlider').value = date.diff(animationController.startDate, 'days');
-            },
-            onComplete: function() {
-                document.getElementById('playButton').disabled = false;
-                document.getElementById('pauseButton').disabled = true;
-            }
-        });
-        
-        document.getElementById('playButton').addEventListener('click', function() {
-            animationController.play();
-            document.getElementById('playButton').disabled = true;
-            document.getElementById('pauseButton').disabled = false;
-        });
-        
-        document.getElementById('pauseButton').addEventListener('click', function() {
-            animationController.pause();
-            document.getElementById('playButton').disabled = false;
-            document.getElementById('pauseButton').disabled = true;
-        });
-        
-        document.getElementById('restartButton').addEventListener('click', function() {
-            animationController.restart();
-            document.getElementById('playButton').disabled = false;
-            document.getElementById('pauseButton').disabled = true;
-        });
-        
-        document.getElementById('timeSlider').addEventListener('input', function(e) {
-            animationController.pause();
-            const daysFromStart = parseInt(e.target.value);
-            animationController.jumpToDate(moment(startDate).add(daysFromStart, 'days'));
-            document.getElementById('playButton').disabled = false;
-            document.getElementById('pauseButton').disabled = true;
-        });
-        
-        document.getElementById('speedControl').addEventListener('change', function(e) {
-            animationController.setSpeed(parseFloat(e.target.value));
-        });
-		
-		document.getElementById('toggleMarkerGrouping').addEventListener('change', function() {
-			if (csvData && csvData.length > 0) {
-				processData(csvData);
-			}
-		});
-        
-        window.addEventListener('resize', function() {
-            setTimeout(() => {
-                map.invalidateSize();
-            }, 100);
-        });
-        
-        setTimeout(() => {
-            map.invalidateSize();
-        }, 100);
-        
-// Instead of automatically loading the CSV file, load the JSON file:
-fetch('data/reports.json')
-    .then(response => response.json())
-    .then(data => {
-        csvData = data;
-        processData(csvData);
-    })
-    .catch(error => {
-        console.error('Error loading reports.json:', error);
-        alert('Error loading reports.json. Please check the file and try again.');
-    });
+			document.getElementById("playButton").addEventListener("click", function () {
+				animationController.play();
+				document.getElementById("playButton").disabled = true;
+				document.getElementById("pauseButton").disabled = false;
+			});
 
-    </script>
-</body>
+			document.getElementById("pauseButton").addEventListener("click", function () {
+				animationController.pause();
+				document.getElementById("playButton").disabled = false;
+				document.getElementById("pauseButton").disabled = true;
+			});
+
+			document.getElementById("restartButton").addEventListener("click", function () {
+				animationController.restart();
+				document.getElementById("playButton").disabled = false;
+				document.getElementById("pauseButton").disabled = true;
+			});
+
+			document.getElementById("timeSlider").addEventListener("input", function (e) {
+				animationController.pause();
+				const daysFromStart = parseInt(e.target.value);
+				animationController.jumpToDate(moment(startDate).add(daysFromStart, "days"));
+				document.getElementById("playButton").disabled = false;
+				document.getElementById("pauseButton").disabled = true;
+			});
+
+			document
+				.getElementById("speedControl")
+				.addEventListener("change", function (e) {
+					animationController.setSpeed(parseFloat(e.target.value));
+				});
+
+			document
+				.getElementById("toggleMarkerGrouping")
+				.addEventListener("change", function () {
+					if (csvData && csvData.length > 0) {
+						processData(csvData);
+					}
+				});
+
+			window.addEventListener("resize", function () {
+				setTimeout(() => {
+					map.invalidateSize();
+				}, 100);
+			});
+
+			setTimeout(() => {
+				map.invalidateSize();
+			}, 100);
+
+			// Instead of automatically loading the CSV file, load the JSON file:
+			fetch("data/reports.json")
+				.then((response) => response.json())
+				.then((data) => {
+					csvData = data;
+					processData(csvData);
+				})
+				.catch((error) => {
+					console.error("Error loading reports.json:", error);
+					alert("Error loading reports.json. Please check the file and try again.");
+				});
+		</script>
+	</body>
 </html>
