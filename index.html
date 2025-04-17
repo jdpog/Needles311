@@ -1701,7 +1701,6 @@
 				map.invalidateSize();
 			}, 100);
 
-			// Instead of automatically loading the CSV file, load the JSON file:
 			fetch("data/reports.json")
 				.then((response) => response.json())
 				.then((data) => {
