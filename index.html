@@ -289,20 +289,51 @@
 				margin-bottom: 10px;
 			}
 			.settings-row label {
-				width: 150px;
+				flex: 0 0 auto;
+				min-width: 120px;
 			}
 			.settings-row input[type="number"] {
 				width: 100px;
 			}
+			
+			.settings-row input[type="text"] {
+				flex: 1 1 auto;
+				min-width: 0;      /* very important so it can shrink below its intrinsic width */
+				width: auto;       /* remove any hard‑coded widths */
+				box-sizing: border-box;
+			}
+			
+			.settings-row input[type="range"] {
+				flex: 1 1 auto;
+				min-width: 0;      /* very important so it can shrink below its intrinsic width */
+				width: auto;       /* remove any hard‑coded widths */
+				box-sizing: border-box;
+			}
+			
+			.settings-row span {
+			flex: 0 0 auto;
+			}
 			.settings-row button {
 				margin-left: auto;
-				padding: 5px 10px;
+				padding: 0px 10px;
+				flex: 0 0 auto;
 			}
 
 			.settings-suboption {
 				margin-left: 20px; /* Adjust the indentation as needed */
 				font-size: 0.9em; /* Optionally reduce font size */
-				padding: 4px 0; /* Optional spacing adjustments */
+				padding: 0px 0; /* Optional spacing adjustments */
+				margin-top:0px;
+				margin-bottom:10px;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				
+			}
+			
+			.settings-suboption label {
+				min-width:120px;
+				flex: 0 0 auto
 			}
 			.chart-container {
 				width: 100%;
@@ -431,7 +462,7 @@
 								type="text"
 								id="addressInput"
 								placeholder="Enter an address"
-								style="width: 300px" />
+							/>
 							<button id="searchAddress">Search</button>
 						</div>
 						<div class="settings-row">
@@ -468,9 +499,9 @@
 								checked />
 						</div>
 						<div class="settings-row">
-							<label for="keywordInput">Keyword Filter:</label>
-							<input type="text" id="keywordInput" placeholder="Enter keyword to filter descriptions">
-							<button id="filterButton">Apply Filter</button>
+							<input type="text" id="keywordInput" placeholder="Enter keyword">
+							<button id="filterButton">Filter</button>
+							<button id="clearFilterButton">Clear</button>
 						</div>
 						<div
 							id="geocodeStatus"
@@ -696,12 +727,43 @@
 				}
 			});
 			
+			document.getElementById('keywordInput').addEventListener('keyup', function() {
+				if (csvData && csvData.length > 0) {
+					processData(csvData);
+				}
+			});
+
 			document.getElementById('filterButton').addEventListener('click', function() {
 				// Re-run processData with the existing dataset to apply the new filter.
 				if (csvData && csvData.length > 0) {
 					processData(csvData);
 				}
 			});
+
+			// Clear the keyword input and re-process the full dataset
+			document.getElementById('clearFilterButton').addEventListener('click', () => {
+				// Empty out the text field
+				const input = document.getElementById('keywordInput');
+				input.value = '';
+			  
+				// Re-run your processing with no filter
+				if (csvData && csvData.length > 0) {
+					processData(csvData);
+				}
+			});
+
+			const clearBtn = document.getElementById('clearFilterButton');
+			const keywordInput = document.getElementById('keywordInput');
+
+			function updateClearButton() {
+				clearBtn.disabled = keywordInput.value.trim() === '';
+			}
+			keywordInput.addEventListener('keyup', () => {
+				updateClearButton();
+				processData(csvData);
+			});
+			// Initialize state
+			updateClearButton();
 
 			map.on("baselayerchange", function (event) {
 				if (event.name === "Dark") {
