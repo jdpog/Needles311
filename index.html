@@ -428,6 +428,7 @@
 					text-align: center;
 				}
 			}
+			
 		</style>
 	</head>
 	<body>
@@ -607,6 +608,15 @@
 					maxZoom: 19,
 				},
 			);
+			
+			  const bwLayer = L.tileLayer(
+				"https://api.maptiler.com/maps/toner-v2/{z}/{x}/{y}.png?key=XyTvOTvEcdEh8fz4uDpw",
+				{
+				  attribution: '&copy; <a href="https://www.maptiler.com">MapTiler</a> &copy; OpenStreetMap contributors',
+				  maxZoom: 19
+				}
+			  );
+			  
 			// Initialize the map with the light layer.
 			const map = L.map("map", { layers: [lightLayer] }).setView(
 				[CENTER_LAT, CENTER_LNG],
@@ -615,8 +625,9 @@
 
 			// Define the baseMaps object.
 			const baseMaps = {
-				Light: lightLayer,
-				Dark: darkLayer,
+				"Light": lightLayer,
+				"Dark": darkLayer,
+				"Black & White": bwLayer
 			};
 
 			// Add Leaflet’s layer control to the map.
