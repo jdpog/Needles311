@@ -40,6 +40,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 		<!-- Add Leaflet.heat for heatmap functionality -->
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+		<script src="data/last_update.js"></script>
 		<style>
 			/* (Existing styles remain unchanged) */
 			body,
@@ -528,6 +529,9 @@
 					<h3>Reports by Year</h3>
 					<div class="chart-container">
 						<canvas id="yearlyChart"></canvas>
+					</div>
+					<div id="last-update" style="margin-top: 1rem; font-size: 0.9rem; color: #555;">
+						
 					</div>
 				</div>
 			</div>
@@ -1796,6 +1800,12 @@
 					console.error("Error loading reports.json:", error);
 					alert("Error loading reports.json. Please check the file and try again.");
 				});
+				
+			const el = document.getElementById('last-update');
+				if (el && window.LAST_UPDATED) {
+				const d = new Date(window.LAST_UPDATED);
+				el.textContent = 'Data last updated: ' + d.toLocaleString();
+			}
 		</script>
 	</body>
 </html>
