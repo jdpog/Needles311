@@ -100,6 +100,9 @@
 				position: relative; /* Needed for absolute positioning inside */
 				height: 100%;
 				width: 100%;
+				position: sticky;
+					top: 0;
+					z-index: 1000;
 			}
 			#map {
 				height: 100%;
@@ -200,7 +203,7 @@
 				cursor: pointer;
 			}
 			.date-display { /* Start/End date text */
-				width: 150px; /* Fixed width for alignment */
+				width: 180px; /* Fixed width for alignment */
 				text-align: center;
 				font-weight: bold;
 				font-size: 0.9em;
