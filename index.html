@@ -769,7 +769,7 @@
                         radiusValueSpan.textContent = RADIUS_MILES.toFixed(2);
                         RADIUS_METERS = RADIUS_MILES * 1609.34;
                         radiusCircle.setRadius(RADIUS_METERS);
-                        radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0.05 });
+                        radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0 });
                     }
                      if (csvData.length > 0) {
                         debouncedProcessData();
