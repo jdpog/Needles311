@@ -434,7 +434,6 @@
 				#timeSlider { width: 100%; }
 				.speed-control { justify-content: center; } /* Center speed control */
    .settings-row {
-         /* flex-direction: column;  <-- Remove or comment out */
          align-items: center;     /* Revert alignment if desired */
          gap: 10px;               /* Adjust gap if needed */
          flex-wrap: wrap;         /* Optional: Allow wrapping */
@@ -446,8 +445,6 @@
          /* margin-bottom: 2px; */ /* Remove if items are inline */
     }
     .settings-row input, .settings-row select, .settings-row button, .settings-row span {
-         /* width: 100% !important; <-- Remove or comment out */
-         /* Adjust widths/flex properties if needed for better layout */
          flex-grow: 1; /* Example: allow inputs to grow */
          flex-basis: auto; /* Example */
          text-align: left;
@@ -995,8 +992,8 @@
                             const circle = L.circleMarker([locationData.lat, locationData.lng], {
                                 radius: radius, fillColor: "#e74c3c", color: "#c0392b",
                                 weight: 1, opacity: opacityFactor, fillOpacity: opacityFactor,
-                                locationKey: locationKey // Store key in options
-								//pane: 'markerPane'
+                                locationKey: locationKey, // Store key in options
+								pane: 'markerPane'
                             });
 
                             // Generate both contents upfront
