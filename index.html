@@ -100,9 +100,6 @@
 				position: relative; /* Needed for absolute positioning inside */
 				height: 100%;
 				width: 100%;
-				position: sticky;
-					top: 0;
-					z-index: 1000;
 			}
 			#map {
 				height: 100%;
@@ -203,7 +200,7 @@
 				cursor: pointer;
 			}
 			.date-display { /* Start/End date text */
-				width: 180px; /* Fixed width for alignment */
+				width: 150px; /* Fixed width for alignment */
 				text-align: center;
 				font-weight: bold;
 				font-size: 0.9em;
@@ -429,6 +426,8 @@
 				.legend { transform: scale(0.8); transform-origin: bottom right; }
 				.leaflet-popup-content-wrapper { transform: scale(0.9); transform-origin: bottom; }
 				.time-slider-container { min-width: 200px; } /* Adjust slider container size */
+				
+				.leaflet-container a.leaflet-popup-close-button {top: 30px; right: 10px;}
 			}
 
 			@media (max-width: 600px) {
