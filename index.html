@@ -722,7 +722,7 @@
                     color: "#3388ff", fillColor: "#3388ff", fillOpacity: 0,
                     radius: RADIUS_METERS, weight: 1.5
                 }).addTo(map);
-                centerMarker = L.marker([CENTER_LAT, CENTER_LNG], { opacity: 0 })
+                centerMarker = L.marker([CENTER_LAT, CENTER_LNG])
                     .bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`)
                     .addTo(map);
 
@@ -1278,7 +1278,7 @@
                 const statusElement = document.getElementById("geocodeStatus");
 				statusElement.textContent = "Searching...";
 				statusElement.style.color = "#666";
-                centerMarker.setOpacity(0);
+                // centerMarker.setOpacity(0);
 
 				let searchQuery = address;
 				if (!/boston/i.test(searchQuery) && !/\bma\b/i.test(searchQuery)) {
@@ -1327,7 +1327,7 @@
                 }
                 statusElement.textContent = "Address not found.";
                 statusElement.style.color = "red";
-                 centerMarker.setOpacity(0);
+                 // centerMarker.setOpacity(0);
             }
 
              function updateMapLocation(lat, lng, displayName, statusElement) { /* ... (no changes needed) ... */
@@ -1338,7 +1338,7 @@
                 statusElement.style.color = "green";
                 map.setView([lat, lng], 16);
                 radiusCircle.setLatLng([lat, lng]);
-                centerMarker.setLatLng([lat, lng]).setPopupContent(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`).setOpacity(1);
+                centerMarker.setLatLng([lat, lng]).setPopupContent(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
                 if (csvData.length > 0) { processData(csvData); }
              }
 
