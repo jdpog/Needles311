@@ -424,7 +424,7 @@
 
     .map-container {
         order: 1;
-        height: 40vh;
+        height: 45vh;
         min-height: 300px;
         position: sticky;
         top: 0; /* Stick map exactly at the top */
@@ -438,7 +438,7 @@
     .controls-section {
         order: 2;
         position: sticky;
-        top: 40vh; /* Stick controls below the map's min-height */
+        top: 45vh; /* Stick controls below the map's min-height */
         /* Or try top: 50vh; if map height is consistently 50vh */
         z-index: 1000;
         background-color: #f9f9f9;
@@ -450,6 +450,14 @@
 			.animation-controls { /* Container for playback controls */
 
 				flex-wrap: wrap; /* Allow wrapping on smaller screens */
+								.legend {
+					transform: scale(0.6);
+					transform-origin: bottom right;
+				}
+
+				.leaflet-popup-content-wrapper {
+					transform: scale(0.6);
+					transform-origin: bottom;
 }
     .settings-section {
         order: 3;
