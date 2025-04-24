@@ -396,7 +396,7 @@
 				.settings-section { order: 1; max-height: none; overflow-y: visible; }
 				.content-section { display: contents; } /* Remove grid behavior */
 				.map-container {
-					order: 2;
+					order: 1;
 					height: 50vh; /* Fixed height for map */
 					min-height: 300px;
 					position: sticky; /* Keep map visible */
@@ -410,10 +410,11 @@
 					padding-bottom: 15px;
 				}
 				.controls-section {
-					order: 3;
-					position: sticky; /* Keep controls visible */
-					bottom: 0; /* Stick to bottom */
-					z-index: 1000;
+        order: 2; /* Make controls appear second */
+        position: sticky; /* Keep controls visible */
+        top: 50vh;       /* Stick below the map (adjust '50vh' if map height changes) */
+        /* If using fixed map height: top: 300px; */
+        z-index: 1000;   /* Below map but above scrolling content */
 				}
 				.settings-panel.map-settings { /* Map settings within info panel */
 					order: 0; /* Display first in info panel */
