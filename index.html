@@ -174,7 +174,7 @@
 				background-color: #f9f9f9;
 				border-radius: 4px;
 				display: flex;
-				flex-wrap: wrap; /* Allow wrapping on smaller screens */
+				flex-wrap: nowrap; /* Allow wrapping on smaller screens */
 				align-items: center;
 				gap: 10px; /* Spacing between controls */
 			}
@@ -446,6 +446,10 @@
          /* Add will-change */
          will-change: transform;
     }
+
+			.animation-controls { /* Container for playback controls */
+
+				flex-wrap: wrap; /* Allow wrapping on smaller screens */
 
     .settings-section {
         order: 3;
