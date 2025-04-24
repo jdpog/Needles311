@@ -248,19 +248,27 @@
 				flex: 1 1 auto; /* Text input takes available space */
 				min-width: 0; /* Allow shrinking */
 			}
+			
+			.settings-row input[type="number"] {
+				width: 100px;
+			}
 			.settings-row input[type="range"] {
-				flex: 1 1 auto; /* Range slider takes available space */
-				min-width: 0;
+				flex: 1 1 auto;
+				min-width: 0;      /* very important so it can shrink below its intrinsic width */
+				width: auto;       /* remove any hard‑coded widths */
+				box-sizing: border-box;
 				cursor: pointer;
 			}
 			.settings-row span { /* e.g., Radius value display */
 				flex: 0 0 auto;
-				min-width: 30px; /* Space for value */
-				text-align: right;
+				/* min-width: 30px;  Space for value */
+				/* text-align: right; */
 				font-size: 0.9em;
 			}
 			.settings-row button {
 				flex: 0 0 auto; /* Button takes minimum space */
+				margin-left: auto;
+				padding: 0px 10px;
 				cursor: pointer;
 			}
 			.settings-suboption { /* Indented options */
