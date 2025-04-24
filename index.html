@@ -386,49 +386,79 @@
 
 			/* --- Responsive Adjustments --- */
 			@media (max-width: 992px) {
-				.page-container {
-					display: flex; /* Switch to flex column layout */
-					flex-direction: column;
-					height: auto; /* Allow content height */
-					max-height: none;
-					overflow: auto; /* Allow scrolling for the whole page */
-				}
-				.settings-section { order: 1; max-height: none; overflow-y: visible; }
-				.content-section { display: contents; } /* Remove grid behavior */
-				.map-container {
-					order: 1;
-					height: 50vh; /* Fixed height for map */
-					min-height: 300px;
-					position: sticky; /* Keep map visible */
-					top: 0;
-					z-index: 1000;
-				}
-				.info-panel {
-					order: 4; /* Info panel below controls */
-					max-height: none;
-					overflow-y: visible;
-					padding-bottom: 15px;
-				}
-				.controls-section {
-        order: 2; /* Make controls appear second */
-        position: sticky; /* Keep controls visible */
-        top: 50vh;       /* Stick below the map (adjust '50vh' if map height changes) */
-        /* If using fixed map height: top: 300px; */
-        z-index: 1000;   /* Below map but above scrolling content */
-				}
-				.settings-panel.map-settings { /* Map settings within info panel */
-					order: 0; /* Display first in info panel */
-					margin-top: 0;
-					margin-bottom: 15px;
-				}
-				#addressInput { width: 100% !important; margin-bottom: 5px; }
-				#searchAddress { margin-left: 0; }
-				.legend { transform: scale(0.8); transform-origin: bottom right; }
-				.leaflet-popup-content-wrapper { transform: scale(0.9); transform-origin: bottom; }
-				.time-slider-container { min-width: 200px; } /* Adjust slider container size */
-				
-				.leaflet-container a.leaflet-popup-close-button {top: 30px; right: 10px;}
-			}
+    html, body {
+        /* Ensure no unexpected overflow restrictions on root elements */
+        overflow: visible; /* Allow body to scroll */
+        height: auto; /* Allow body height to adapt */
+    }
+
+    .page-container {
+        display: flex;
+        flex-direction: column;
+        /* Remove fixed height constraints to allow natural scrolling */
+        height: auto;
+        max-height: none;
+        /* Ensure this container itself is not preventing scrolling */
+        overflow: visible; /* Let the body handle scrolling */
+        width: 100%; /* Ensure it takes full width */
+    }
+
+    .content-section {
+        display: contents; /* Keep this, makes map/info direct flex items */
+    }
+
+    .map-container {
+        order: 1;
+        height: 50vh;       /* Keep desired height */
+        min-height: 300px;  /* Keep minimum height */
+        position: sticky;
+        top: 0;             /* Stick map to the very top */
+        z-index: 1001;
+        background-color: #fff; /* Keep background */
+         body.dark-mode & { background-color: #222; }
+    }
+
+    .controls-section {
+        order: 2;
+        position: sticky;
+        /* Use the map's min-height for a more fixed reference */
+        top: 300px; /* Stick controls below the map's min-height */
+        /* If 50vh consistently works better, you can try 'top: 50vh;' again */
+        z-index: 1000;
+        background-color: #f9f9f9; /* Keep background */
+         body.dark-mode & { background-color: #2a2a2a; }
+        /* Add some margin below if needed to space from content */
+        /* margin-bottom: 10px; */
+    }
+
+    .settings-section { /* If you display settings, ensure they scroll */
+        order: 3;
+        max-height: none;
+        overflow-y: visible; /* Part of scrolling content */
+    }
+
+    .info-panel {
+        order: 4;
+        max-height: none;
+        overflow-y: visible; /* Part of scrolling content */
+        padding-bottom: 15px;
+        /* Content will naturally start below the sticky elements */
+        width: 100%; /* Ensure full width */
+    }
+
+    /* --- Keep other mobile styles --- */
+    .settings-panel.map-settings {
+        order: 0; /* Within info-panel */
+        margin-top: 0;
+        margin-bottom: 15px;
+    }
+    #addressInput { width: 100% !important; margin-bottom: 5px; }
+    #searchAddress { margin-left: 0; }
+    .legend { transform: scale(0.8); transform-origin: bottom right; }
+    .leaflet-popup-content-wrapper { transform: scale(0.9); transform-origin: bottom; }
+    .time-slider-container { min-width: 200px; }
+    .leaflet-container a.leaflet-popup-close-button {top: 30px; right: 10px;}
+}
 
 			@media (max-width: 600px) {
 				.stats-grid {
