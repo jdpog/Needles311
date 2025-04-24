@@ -241,7 +241,8 @@
 			.settings-row input[type="range"],
 			.settings-row select,
 			.settings-row button {
-				padding: 5px;
+				padding-top: 5px;
+				padding-bottom: 5px;
 				border: 1px solid #ccc;
 				border-radius: 4px;
 				font-size: 0.9em;
@@ -687,19 +688,19 @@
                 const lightLayer = L.tileLayer(
                     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
                         attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-                        subdomains: "abcd", maxZoom: 20
+                        subdomains: "abcd", maxZoom: 19
                     }
                 );
                 const darkLayer = L.tileLayer(
                     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
                         attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-                        subdomains: "abcd", maxZoom: 20
+                        subdomains: "abcd", maxZoom: 19
                     }
                 );
                 const bwLayer = L.tileLayer(
                     "https://api.maptiler.com/maps/toner-v2/{z}/{x}/{y}.png?key=XyTvOTvEcdEh8fz4uDpw", {
                         attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; OpenStreetMap contributors',
-                        maxZoom: 20
+                        maxZoom: 19
                     }
                 );
 
@@ -714,7 +715,7 @@
                 L.control.layers(baseMaps).addTo(map);
 
                 // Initialize layers
-                heatLayer = L.heatLayer([], { radius: 20, blur: 15, maxZoom: 18 });
+                heatLayer = L.heatLayer([], { radius: 25, blur: 15, maxZoom: 17 });
                 markersLayer = L.layerGroup().addTo(map);
 
                 // Radius circle and center marker
