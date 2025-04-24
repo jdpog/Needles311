@@ -476,11 +476,16 @@
 								value="0.25" />
 							<span id="radiusValue">0.25</span>
 						</div>
+												<!-- Heatmap toggle row -->
+						<div class="settings-row">
+							<label for="toggleHeatmap">Show Heatmap:</label>
+							<input
+								type="checkbox"
+								id="toggleHeatmap" />
+						</div>
 						<div class="settings-row">
 							<label for="toggleMarkers">Show Markers:</label>
 							<input type="checkbox" id="toggleMarkers" checked />
-							<label for="toggleHeatmap" style="margin-left: auto;">Show Heatmap:</label>
-							<input type="checkbox" id="toggleHeatmap" />
 						</div>
 						<div class="settings-suboption">
 							<label for="toggleMarkerGrouping">Group by Address:</label>
@@ -552,7 +557,7 @@
 			let RADIUS_MILES = 0.25; // Default radius
 			let RADIUS_METERS = RADIUS_MILES * 1609.34;
 			let csvData = []; // Stores the loaded report data (from JSON)
-			let allReports = []; // Stores processed reports within the radius/filter
+			let allReports = []; // Stores processed reports within the radius/filter (used for heatmap)
 			let reportsByLocation = new Map(); // Groups reports by location for markers
 			let globalDateRangeSet = false; // Flag to parse dates only once
 			let startDate = null;
@@ -638,7 +643,7 @@
                 L.control.layers(baseMaps).addTo(map);
 
                 // Initialize layers
-                heatLayer = L.heatLayer([], { radius: 20, blur: 15, maxZoom: 18 }); // Adjusted heatmap params
+                heatLayer = L.heatLayer([], { radius: 25, blur: 15, maxZoom: 17 }); // Adjusted heatmap params
                 markersLayer = L.layerGroup().addTo(map); // Layer for markers (will hold canvas markers indirectly)
 
                 // Radius circle and center marker
@@ -733,7 +738,9 @@
                      // Re-initialize chart if it exists to adapt colors (simple approach)
                      if (yearlyReportsChart) {
                          initializeYearlyChart();
-                         updateYearlyChart(animationController.currentDate);
+                         // Find the reports up to the current date to update the chart
+                         const reportsToDate = allReports.filter(report => report.date <= animationController.currentDate);
+                         updateYearlyChart(reportsToDate, animationController.currentDate);
                      }
                 });
 
@@ -746,7 +753,7 @@
                     onVisualize: visualizeDataAtDate, // Function to call for visualization
                     onDateUpdate: (date) => { // Update UI date display and slider
                         if (!animationController.startDate) return; // Don't update if dates not set
-                        document.getElementById("currentDate").textContent = date.format("MMM D, YYYY");
+                        document.getElementById("currentDate").textContent = date.format("MMM D, YYYY"); // Changed format slightly
                         document.getElementById("timeSlider").value = date.diff(animationController.startDate, "days");
                     },
                     onComplete: () => { // Re-enable play button when animation finishes
@@ -897,8 +904,8 @@
                 console.time("processData"); // Start timing
 
                 // Clear previous processed data
-                allReports = [];
-                reportsByLocation.clear();
+                allReports = []; // Clear flat list used for heatmap/sorting
+                reportsByLocation.clear(); // Clear grouped list used for markers
 
                 const keyword = document.getElementById('keywordInput').value.trim().toLowerCase();
                 const groupByAddress = document.getElementById('toggleMarkerGrouping').checked;
@@ -910,7 +917,6 @@
                 data.forEach(row => {
                     // Basic data validation
                     if (!row || typeof row !== 'object' || !row.lat || !row.long || !row.requested_datetime) {
-                        // console.warn("Skipping invalid row:", row); // Optional: Log invalid rows
                         return; // Skip incomplete rows
                     }
 
@@ -929,47 +935,47 @@
                         }
 
                         // Parse date
-                        const date = moment(row.requested_datetime); // Consider specifying format if known: moment(row.requested_datetime, "YYYY-MM-DD HH:mm:ss")
+                        const date = moment(row.requested_datetime); // Consider specifying format if known
                         if (date.isValid()) {
                             // Collect dates for global range (first run only)
                             if (globalDates) {
                                 globalDates.push(date);
                             }
 
-                            // Determine location key for grouping
+                            // Create the basic report object - needed for both allReports and reportsByLocation
+                            const report = { date: date, data: row }; // Simplified report object initially
+
+                            // Add to the flat list (used for heatmap and sorting)
+                            allReports.push(report);
+
+                            // --- Grouping Logic for Markers ---
                             let locationKey;
                             if (groupByAddress && row.address) {
-                                // Normalize address slightly for better grouping
                                 locationKey = row.address.trim().toLowerCase().replace(/\s+/g, ' ');
                             } else {
-                                // Use coordinates + counter for unique key if not grouping or no address
                                 locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
                             }
 
-                            // Get or create location entry
+                            // Get or create location entry in the grouped map
                             let locationData = reportsByLocation.get(locationKey);
                             if (!locationData) {
                                 locationData = {
                                     lat: lat,
                                     lng: lng,
-                                    address: row.address || `(${lat.toFixed(4)}, ${lng.toFixed(4)})`, // Use coords if no address
-                                    reports: [],
-                                    latestDate: null
+                                    address: row.address || `(${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+                                    reports: [], // This will store references to reports at this location
+                                    // latestDate: null // REMOVED: latestDate is now calculated dynamically in visualizeDataAtDate
                                 };
                                 reportsByLocation.set(locationKey, locationData);
                             }
 
-                            // Create report object and add to structures
-                            const report = { date: date, locationKey: locationKey, data: row };
+                            // Add the *same* report object reference to the grouped location's list
                             locationData.reports.push(report);
-                            allReports.push(report); // Add to flat list for sorting/filtering by date
 
-                            // Update latest date for the location
-                            if (!locationData.latestDate || date > locationData.latestDate) {
-                                locationData.latestDate = date;
-                            }
-                        } else {
-                            // console.warn("Skipping row with invalid date:", row.requested_datetime, row); // Optional: Log invalid dates
+                            // REMOVED: No need to calculate latestDate here anymore
+                            // if (!locationData.latestDate || date > locationData.latestDate) {
+                            //     locationData.latestDate = date;
+                            // }
                         }
                     }
                 });
@@ -1005,7 +1011,7 @@
                 }
 
                 // Initial visualization based on the current date (or start date if first run)
-                if (animationController.currentDate) {
+                if (animationController && animationController.currentDate) {
                      visualizeDataAtDate(animationController.currentDate);
                 } else if (startDate) {
                      visualizeDataAtDate(startDate); // Visualize at start if controller not ready
@@ -1033,13 +1039,13 @@
                     div.innerHTML = `
                         <h4>Legend</h4>
                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:5px; height:5px; margin-right: 8px; opacity: 0.7;"></i> Single Report
+                            <i style="background:#e74c3c; border-radius:50%; width:8px; height:8px; margin-right: 8px; opacity: 0.7;"></i> Single Report
                         </div>
                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:15px; height:15px; margin-right: 8px; opacity: 0.7;"></i> Multiple Reports
+                            <i style="background:#e74c3c; border-radius:50%; width:18px; height:18px; margin-right: 8px; opacity: 0.7;"></i> Multiple Reports
                         </div>
                          <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:25px; height:25px; margin-right: 8px; opacity: 0.7;"></i> Many Reports
+                            <i style="background:#e74c3c; border-radius:50%; width:28px; height:28px; margin-right: 8px; opacity: 0.7;"></i> Many Reports
                         </div>
                         <hr style="margin: 5px 0;">
                          <div style="display: flex; align-items: center; margin-bottom: 4px;">
@@ -1061,141 +1067,137 @@
 
                 console.time("visualizeDataAtDate"); // Start timing
 
-                // Clear existing markers
+                // Clear existing markers from their layer
                 markersLayer.clearLayers();
 
-                // Prepare data for heatmap and markers in one pass
+                // Prepare data for heatmap and calculate stats simultaneously
                 let heatData = [];
-                let activeLocationCount = 0;
-                let recentReportCount = 0; // Reports within the last 30 days from targetDate
-                let totalReportCount = 0; // Total reports up to targetDate
+                let activeLocationCount = 0; // Based on grouped locations for markers
+                let recentReportCount = 0; // Based on individual reports
+                let totalReportCount = 0; // Based on individual reports
 
                 const showMarkers = document.getElementById("toggleMarkers").checked;
                 const showHeatmap = document.getElementById("toggleHeatmap").checked;
 
-                // *** OPTIMIZED LOOP: Iterate through grouped locations ***
-                reportsByLocation.forEach((locationData) => {
-                    // Filter reports for this location up to the targetDate
-                    const relevantReports = locationData.reports.filter(report => report.date <= targetDate);
+                // --- Filter individual reports for heatmap and stats FIRST ---
+                const reportsToDate = allReports.filter(report => report.date <= targetDate);
+                totalReportCount = reportsToDate.length;
 
-                    if (relevantReports.length > 0) {
-                        activeLocationCount++;
-                        totalReportCount += relevantReports.length;
+                reportsToDate.forEach(report => {
+                     // Count recent reports
+                    if (targetDate.diff(report.date, "days") <= 30) {
+                        recentReportCount++;
+                    }
 
-                        // Sort by date to find newest for opacity calculation
-                        relevantReports.sort((a, b) => b.date - a.date); // Newest first
-                        const newestDate = relevantReports[0].date;
+                    // Add to heatmap data (if enabled)
+                    if (showHeatmap) {
+                        const lat = parseFloat(report.data.lat);
+                        const lng = parseFloat(report.data.long);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            const daysDiff = targetDate.diff(report.date, "days", true);
+                            const weight = Math.max(0.1, 1 - daysDiff / 365); // Weight heatmap points
+                            heatData.push([lat, lng, weight]);
+                        }
+                    }
+                });
 
-                        // Calculate opacity based on age of the newest report at this location
-                        const monthsSinceNewest = targetDate.diff(newestDate, "months", true);
-                        const opacityFactor = Math.max(0.2, 1 - monthsSinceNewest / 12); // Fade over 12 months, min opacity 0.2
 
-                        // --- Marker Creation (if enabled) ---
-                        if (showMarkers) {
-                            const radius = Math.min(25, Math.max(3, 3 + relevantReports.length * 0.8)); // Adjusted scaling, smaller max/min
+                // --- Process grouped locations for Markers (if enabled) ---
+                if (showMarkers) {
+                    reportsByLocation.forEach((locationData) => {
+                        // Filter reports *for this specific location* up to the targetDate
+                        const relevantReportsForMarker = locationData.reports.filter(reportRef => reportRef.date <= targetDate);
 
-                            // Create the circle marker (Leaflet handles canvas rendering)
+                        if (relevantReportsForMarker.length > 0) {
+                            activeLocationCount++; // Increment count for locations with markers
+
+                            // *** FIX: Calculate newestDate based on currently visible reports ***
+                            const newestDate = moment.max(relevantReportsForMarker.map(r => r.date)); // Find max date in filtered list
+
+                            const monthsSinceNewest = newestDate ? targetDate.diff(newestDate, "months", true) : 13; // Handle case where newestDate might be null (shouldn't happen if relevantReportsForMarker > 0)
+                            const opacityFactor = Math.max(0.2, 1 - monthsSinceNewest / 12);
+
+                            // Marker Size (using your adjusted values)
+                            const radius = Math.min(60, Math.max(5, 5 + relevantReportsForMarker.length * 1.5));
+
+                            // Create the circle marker
                             const circle = L.circleMarker([locationData.lat, locationData.lng], {
                                 radius: radius,
-                                fillColor: "#e74c3c", // Red color for needles
-                                color: "#c0392b", // Darker border
+                                fillColor: "#e74c3c",
+                                color: "#c0392b",
                                 weight: 1,
-                                opacity: opacityFactor, // Opacity based on newest report age
-                                fillOpacity: opacityFactor * 0.7, // Slightly less fill opacity
+                                opacity: opacityFactor, // Use corrected opacity
+                                fillOpacity: opacityFactor, // Use corrected opacity (or adjust if needed, e.g., opacityFactor * 0.7)
                             });
 
-                            // --- Popup Content ---
-                            // Summary Popup (shown on hover/initial click)
+                            // --- Popup Content (using relevantReportsForMarker) ---
+                            const oldestReportDate = moment.min(relevantReportsForMarker.map(r => r.date)); // Find min date here
                             const summaryContent = `
                                 <div style="font-size: 0.9em;">
                                     <h4 style="margin:0 0 5px 0; font-size:1.1em;">${locationData.address}</h4>
-                                    <strong>${relevantReports.length} report(s)</strong><br>
-                                    Newest: ${newestDate.format("MMM D, YYYY")}
+                                    <strong>${relevantReportsForMarker.length} report(s)</strong><br>
+                                    ${newestDate ? `Newest: ${newestDate.format("MMM D, YYYY")}` : ''}
+                                    ${oldestReportDate && newestDate && !oldestReportDate.isSame(newestDate, 'day') ? `<br>Oldest: ${oldestReportDate.format("MMM D, YYYY")}` : ''}
                                     <hr style="margin: 3px 0;">
                                     <em style="color: #555;">Click for details</em>
                                 </div>`;
 
-                            circle.bindPopup(summaryContent, {
-                                autoPan: false, // Prevent map panning when popup opens
-                                closeButton: false, // Hide default close button initially
-                                // offset: L.point(0, -radius) // Position above marker
-                            });
+                            circle.bindPopup(summaryContent, { autoPan: false, closeButton: false });
 
-                             // Detailed Popup (shown on click after summary)
                             circle.on("click", function (e) {
-                                // Prevent map click event from firing
                                 L.DomEvent.stopPropagation(e);
-
-                                // Generate detailed content dynamically
-                                const detailContent = updateDetailedInfoPanel(locationData, targetDate);
-                                circle.setPopupContent(detailContent); // Update existing popup
-                                circle.options.closeButton = true; // Show close button for details
+                                // Pass the specific reports for *this marker* to the detail panel function
+                                const detailContent = updateDetailedInfoPanel(locationData, relevantReportsForMarker, targetDate);
+                                circle.setPopupContent(detailContent);
+                                circle.options.closeButton = true;
                                 if (!circle.isPopupOpen()) {
                                      circle.openPopup();
                                 }
                             });
 
-                            // Add marker to the layer group
                             markersLayer.addLayer(circle);
                         }
-
-                        // --- Heatmap Data & Recent Count ---
-                        relevantReports.forEach(report => {
-                            // Add to heatmap data (if enabled)
-                            if (showHeatmap) {
-                                const daysDiff = targetDate.diff(report.date, "days", true);
-                                // Weight heatmap points: newer points have higher intensity, fade over ~1 year
-                                const weight = Math.max(0.1, 1 - daysDiff / 365);
-                                heatData.push([locationData.lat, locationData.lng, weight]);
-                            }
-
-                            // Count recent reports
-                            if (targetDate.diff(report.date, "days") <= 30) {
-                                recentReportCount++;
-                            }
-                        });
-                    }
-                });
+                    });
+                }
 
                 // Update Heatmap Layer (if enabled)
                 if (showHeatmap) {
                     heatLayer.setLatLngs(heatData);
+                } else {
+                    heatLayer.setLatLngs([]); // Clear heatmap if disabled
                 }
 
-                // Update Statistics Display
+                // Update Statistics Display (using counts derived from individual reports)
                 document.getElementById("totalReports").textContent = totalReportCount;
-                document.getElementById("activeLocations").textContent = activeLocationCount;
+                document.getElementById("activeLocations").textContent = activeLocationCount; // This count is based on visible markers
                 document.getElementById("recentReports").textContent = recentReportCount;
 
-                // Update Yearly Chart
-                updateYearlyChart(targetDate);
+                // Update Yearly Chart (using individual reports filtered by date)
+                updateYearlyChart(reportsToDate, targetDate); // Pass filtered reports
 
                 console.timeEnd("visualizeDataAtDate"); // End timing
             }
 
 
-            function updateDetailedInfoPanel(locationData, targetDate) {
-				// Filter reports again for safety, though should be pre-filtered
-				const filteredReports = locationData.reports
-					.filter(report => report.date <= targetDate)
-					.sort((a, b) => b.date - a.date); // Sort newest first
+            // Modified to accept the pre-filtered reports for the specific location
+            function updateDetailedInfoPanel(locationData, filteredReportsForLocation, targetDate) {
+                // Sort reports newest first (already done in calling function, but good practice)
+                filteredReportsForLocation.sort((a, b) => b.date - a.date);
 
-				if (filteredReports.length === 0) return "No reports found for this date.";
+				if (filteredReportsForLocation.length === 0) return "No reports found for this date.";
 
-				const newestReport = filteredReports[0];
-				const oldestReport = filteredReports[filteredReports.length - 1];
+				const newestReport = filteredReportsForLocation[0];
+				const oldestReport = filteredReportsForLocation[filteredReportsForLocation.length - 1];
 
 				// Build the detailed report list HTML
-				let listHTML = filteredReports.map(report => {
+				let listHTML = filteredReportsForLocation.map(report => { // Use the passed filtered list
 					let itemHTML = `<div class="report-item">
-						<div><strong>${report.date.format("MMM D, YYYY h:mm A")}</strong></div>`;
+						<div><strong>${report.date.format("MMM D, YYYY h:mm A")}</strong></div>`; // Added Year
 					if (report.data.description) {
-						// Basic sanitization: replace < > to prevent HTML injection
 						const safeDescription = report.data.description.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 						itemHTML += `<div style="font-size: 0.9em; margin-top: 3px;">${safeDescription}</div>`;
 					}
 					if (report.data.media_url && report.data.media_url.trim() !== "") {
-						// Encode URL and description for safety in JS call
 						const safeMediaUrl = JSON.stringify(report.data.media_url);
 						const safeDescForPopup = JSON.stringify(report.data.description || "");
 						const titleText = JSON.stringify(`${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`);
@@ -1216,7 +1218,7 @@
 					<div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
 						<h4 style="margin:0 0 5px 0; font-size:1.1em;">${locationData.address}</h4>
 						<p style="font-size: 0.9em; margin: 0 0 8px 0; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-							Total Reports: ${filteredReports.length}<br>
+							Total Reports at Location: ${filteredReportsForLocation.length}<br>
 							<span style="color: #555;">Oldest: ${oldestReport.date.format("MMM D, YYYY")} | Newest: ${newestReport.date.format("MMM D, YYYY")}</span>
 						</p>
 						${listHTML}
@@ -1230,65 +1232,36 @@
 					console.error("Chart canvas element not found!");
 					return null;
 				}
-				// Destroy previous chart instance if it exists
 				if (yearlyReportsChart) {
 					yearlyReportsChart.destroy();
 				}
 
-                // Determine colors based on dark mode
                 const isDarkMode = document.body.classList.contains('dark-mode');
                 const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
                 const labelColor = isDarkMode ? '#ccc' : '#666';
-                const barColor = isDarkMode ? 'rgba(231, 76, 60, 0.6)' : 'rgba(231, 76, 60, 0.7)'; // Slightly less opaque in dark mode
+                const barColor = isDarkMode ? 'rgba(231, 76, 60, 0.6)' : 'rgba(231, 76, 60, 0.7)';
                 const barBorderColor = isDarkMode ? 'rgba(192, 57, 43, 0.8)' : 'rgba(192, 57, 43, 1)';
 
 				try {
-					yearlyReportsChart = new Chart(chartCanvas.getContext('2d'), { // Ensure context is passed
+					yearlyReportsChart = new Chart(chartCanvas.getContext('2d'), {
 						type: "bar",
-						data: {
-							labels: [], // Populated by updateYearlyChart
-							datasets: [{
-								label: "Number of Reports",
-								data: [], // Populated by updateYearlyChart
-								backgroundColor: barColor,
-								borderColor: barBorderColor,
-								borderWidth: 1,
-							}],
-						},
+						data: { labels: [], datasets: [{ label: "Number of Reports", data: [], backgroundColor: barColor, borderColor: barBorderColor, borderWidth: 1 }] },
 						options: {
-							responsive: true,
-							maintainAspectRatio: false, // Allow chart to fill container height
+							responsive: true, maintainAspectRatio: false,
 							scales: {
-								y: {
-									beginAtZero: true,
-									title: { display: true, text: "Number of Reports", color: labelColor },
-                                    ticks: { precision: 0, color: labelColor },
-                                    grid: { color: gridColor }
-								},
-								x: {
-									title: { display: true, text: "Year", color: labelColor },
-                                    ticks: { color: labelColor },
-                                     grid: { display: false } // Hide vertical grid lines
-								},
+								y: { beginAtZero: true, title: { display: true, text: "Number of Reports", color: labelColor }, ticks: { precision: 0, color: labelColor }, grid: { color: gridColor } },
+								x: { title: { display: true, text: "Year", color: labelColor }, ticks: { color: labelColor }, grid: { display: false } }
 							},
 							plugins: {
-								legend: { display: false }, // No need for legend with one dataset
+								legend: { display: false },
 								tooltip: {
-                                    backgroundColor: isDarkMode ? '#222' : '#fff',
-                                    titleColor: isDarkMode ? '#eee' : '#333',
-                                    bodyColor: isDarkMode ? '#ddd' : '#555',
-                                    borderColor: gridColor,
-                                    borderWidth: 1,
-									callbacks: {
-										title: (tooltipItems) => "Year: " + tooltipItems[0].label,
-										label: (context) => "Reports: " + context.raw,
-									},
-								},
+                                    backgroundColor: isDarkMode ? '#222' : '#fff', titleColor: isDarkMode ? '#eee' : '#333', bodyColor: isDarkMode ? '#ddd' : '#555',
+                                    borderColor: gridColor, borderWidth: 1,
+									callbacks: { title: (tooltipItems) => "Year: " + tooltipItems[0].label, label: (context) => "Reports: " + context.raw }
+								}
 							},
-							animation: {
-								duration: 0, // Disable initial animation, update dynamically
-							},
-						},
+							animation: { duration: 0 }
+						}
 					});
 					return yearlyReportsChart;
 				} catch (error) {
@@ -1297,45 +1270,39 @@
 				}
 			}
 
-            function updateYearlyChart(targetDate) {
-				if (!allReports || allReports.length === 0 || !targetDate || !targetDate.isValid()) {
-					// Clear chart if no data or invalid date
+            // Modified to accept pre-filtered reportsToDate
+            function updateYearlyChart(reportsToDate, targetDate) {
+				if (!reportsToDate || reportsToDate.length === 0 || !targetDate || !targetDate.isValid()) {
                     if (yearlyReportsChart) {
                          yearlyReportsChart.data.labels = [];
                          yearlyReportsChart.data.datasets[0].data = [];
-                         yearlyReportsChart.update('none'); // Update without animation
+                         yearlyReportsChart.update('none');
                     }
 					return;
 				}
-				// Filter reports up to the target date
-				const reportsToDate = allReports.filter(report => report.date <= targetDate);
 
-				// Aggregate counts by year
+				// Aggregate counts by year (using the already filtered list)
 				const yearCounts = {};
 				reportsToDate.forEach(report => {
 					const year = report.date.year();
 					yearCounts[year] = (yearCounts[year] || 0) + 1;
 				});
 
-				// Prepare data for Chart.js
-				const years = Object.keys(yearCounts).map(Number).sort((a, b) => a - b); // Sort years numerically
+				const years = Object.keys(yearCounts).map(Number).sort((a, b) => a - b);
 				const counts = years.map(year => yearCounts[year]);
 
-				// Initialize chart if it doesn't exist
 				if (!yearlyReportsChart) {
 					yearlyReportsChart = initializeYearlyChart();
-                    if (!yearlyReportsChart) return; // Exit if initialization failed
+                    if (!yearlyReportsChart) return;
 				}
 
-				// Update chart data
 				yearlyReportsChart.data.labels = years;
 				yearlyReportsChart.data.datasets[0].data = counts;
 
-				// Determine animation duration (disable during playback for performance)
 				const isAnimating = animationController && animationController.isPlaying;
-				yearlyReportsChart.options.animation.duration = isAnimating ? 0 : 400; // Faster update animation
+				yearlyReportsChart.options.animation.duration = isAnimating ? 0 : 400;
 
-                // Update chart colors based on current mode
+                // Update chart colors based on current mode (redundant here if done in initialize, but safe)
                 const isDarkMode = document.body.classList.contains('dark-mode');
                 const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
                 const labelColor = isDarkMode ? '#ccc' : '#666';
@@ -1348,9 +1315,7 @@
                 yearlyReportsChart.options.plugins.tooltip.titleColor = isDarkMode ? '#eee' : '#333';
                 yearlyReportsChart.options.plugins.tooltip.bodyColor = isDarkMode ? '#ddd' : '#555';
 
-
-				// Update the chart
-				yearlyReportsChart.update('none'); // Use 'none' to prevent default easing if duration is 0
+				yearlyReportsChart.update('none');
 			}
 
             // --- Geocoding ---
@@ -1365,18 +1330,16 @@
 				const statusElement = document.getElementById("geocodeStatus");
 				statusElement.textContent = "Searching...";
 				statusElement.style.color = "#666";
-                centerMarker.setOpacity(0); // Hide marker during search
+                centerMarker.setOpacity(0);
 
-				// Add Boston, MA context if not present
 				let searchQuery = address;
 				if (!/boston/i.test(searchQuery) && !/\bma\b/i.test(searchQuery)) {
 					searchQuery += ", Boston, MA";
 				}
 
-				// Nominatim API URL (bounded viewbox for Boston area)
 				const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=jsonv2&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1`;
 
-				fetch(nominatimUrl, { headers: { "User-Agent": "Boston311Viz/1.0 (github.com/jparkerogrady/boston-needle-viz)" } }) // Added User-Agent
+				fetch(nominatimUrl, { headers: { "User-Agent": "Boston311Viz/1.0 (github.com/jparkerogrady/boston-needle-viz)" } })
 					.then(response => {
 						if (!response.ok) throw new Error(`Network error: ${response.status}`);
 						return response.json();
@@ -1384,14 +1347,8 @@
 					.then(data => {
 						if (data && data.length > 0) {
 							const result = data[0];
-							updateMapLocation(
-                                parseFloat(result.lat),
-                                parseFloat(result.lon),
-                                result.display_name,
-                                statusElement
-                            );
+							updateMapLocation( parseFloat(result.lat), parseFloat(result.lon), result.display_name, statusElement );
 						} else {
-							// Fallback to local check if Nominatim fails
 							checkLocalDatabase(address, statusElement);
 						}
 					})
@@ -1399,110 +1356,68 @@
 						console.error("Nominatim Geocoding error:", error);
                         statusElement.textContent = "Geocoding failed. Trying local...";
                         statusElement.style.color = "orange";
-						checkLocalDatabase(address, statusElement); // Fallback on fetch error
+						checkLocalDatabase(address, statusElement);
 					});
 			}
 
             function checkLocalDatabase(address, statusElement) {
-                // Simple local lookup for common neighborhoods/landmarks
                  const localMatches = {
-                    "mission hill": { lat: 42.331, lng: -71.105, name: "Mission Hill" },
-                    "roxbury": { lat: 42.328, lng: -71.090, name: "Roxbury" },
-                    "jamaica plain": { lat: 42.310, lng: -71.115, name: "Jamaica Plain" },
-                    "fenway": { lat: 42.345, lng: -71.100, name: "Fenway" },
-                    "boston common": { lat: 42.355, lng: -71.066, name: "Boston Common" },
-                    "dorchester": { lat: 42.300, lng: -71.065, name: "Dorchester" },
-                    "south boston": { lat: 42.338, lng: -71.040, name: "South Boston" },
-                    "south end": { lat: 42.340, lng: -71.075, name: "South End" },
-                    "back bay": { lat: 42.350, lng: -71.080, name: "Back Bay" },
-                    "downtown": { lat: 42.358, lng: -71.060, name: "Downtown Boston" },
-                    "mass ave": { lat: 42.3418, lng: -71.1021, name: "Mass Ave Area" }, // Generic point
-                    "melnea cass": { lat: 42.331, lng: -71.075, name: "Melnea Cass Blvd Area" }, // Generic point
-                     "south huntington": { lat: 42.3238, lng: -71.1113, name: "South Huntington Ave Area" },
+                    "mission hill": { lat: 42.331, lng: -71.105, name: "Mission Hill" }, "roxbury": { lat: 42.328, lng: -71.090, name: "Roxbury" },
+                    "jamaica plain": { lat: 42.310, lng: -71.115, name: "Jamaica Plain" }, "fenway": { lat: 42.345, lng: -71.100, name: "Fenway" },
+                    "boston common": { lat: 42.355, lng: -71.066, name: "Boston Common" }, "dorchester": { lat: 42.300, lng: -71.065, name: "Dorchester" },
+                    "south boston": { lat: 42.338, lng: -71.040, name: "South Boston" }, "south end": { lat: 42.340, lng: -71.075, name: "South End" },
+                    "back bay": { lat: 42.350, lng: -71.080, name: "Back Bay" }, "downtown": { lat: 42.358, lng: -71.060, name: "Downtown Boston" },
+                    "mass ave": { lat: 42.3418, lng: -71.1021, name: "Mass Ave Area" }, "melnea cass": { lat: 42.331, lng: -71.075, name: "Melnea Cass Blvd Area" },
+                    "south huntington": { lat: 42.3238, lng: -71.1113, name: "South Huntington Ave Area" },
                 };
-
                 const cleanAddress = address.toLowerCase().trim();
                 for (const [key, location] of Object.entries(localMatches)) {
                     if (cleanAddress.includes(key)) {
                          updateMapLocation(location.lat, location.lng, `${location.name}, Boston, MA (Approx.)`, statusElement);
-                         return; // Found local match
+                         return;
                     }
                 }
-
-                // No match found
                 statusElement.textContent = "Address not found.";
                 statusElement.style.color = "red";
-                 centerMarker.setOpacity(0); // Keep marker hidden if not found
+                 centerMarker.setOpacity(0);
             }
 
              function updateMapLocation(lat, lng, displayName, statusElement) {
                 CENTER_LAT = lat;
                 CENTER_LNG = lng;
-
-                // Truncate display name if too long
-                let shortDisplayName = displayName;
-                if (shortDisplayName.length > 60) {
-                    shortDisplayName = shortDisplayName.substring(0, 57) + "...";
-                }
+                let shortDisplayName = displayName.length > 60 ? displayName.substring(0, 57) + "..." : displayName;
                 statusElement.textContent = `Found: ${shortDisplayName}`;
                 statusElement.style.color = "green";
-
-                // Update map view and markers
-                map.setView([lat, lng], 16); // Zoom in on found location
+                map.setView([lat, lng], 16);
                 radiusCircle.setLatLng([lat, lng]);
-                centerMarker.setLatLng([lat, lng])
-                            .setPopupContent(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
-                            .setOpacity(1); // Show the center marker
-
-                // Re-process data for the new location
-                if (csvData.length > 0) {
-                    processData(csvData);
-                }
+                centerMarker.setLatLng([lat, lng]).setPopupContent(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`).setOpacity(1);
+                if (csvData.length > 0) { processData(csvData); }
             }
 
             // --- Image Popup ---
             function showFullSizeImage(mediaUrl, description, titleText) {
-				// Check if overlay exists, remove if it does
 				const existingOverlay = document.getElementById("imageOverlay");
-				if (existingOverlay) {
-					document.body.removeChild(existingOverlay);
-				}
+				if (existingOverlay) { document.body.removeChild(existingOverlay); }
 
-				// Create overlay
 				const overlay = document.createElement("div");
 				overlay.id = "imageOverlay";
-				Object.assign(overlay.style, {
-					position: "fixed", top: '0', left: '0', width: "100%", height: "100%",
-					backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center",
-					alignItems: "center", zIndex: "10001", cursor: 'pointer' // Close on background click
-				});
+				Object.assign(overlay.style, { position: "fixed", top: '0', left: '0', width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: "10001", cursor: 'pointer' });
 
-				// Create container
 				const container = document.createElement("div");
-                 const isDarkMode = document.body.classList.contains('dark-mode');
-				Object.assign(container.style, {
-					position: "relative", backgroundColor: isDarkMode ? "#333" : "#fff", color: isDarkMode ? "#ddd" : "#333",
-                    padding: "20px", maxWidth: "90vw", maxHeight: "90vh", overflow: "auto",
-					boxShadow: "0 4px 15px rgba(0,0,0,0.4)", borderRadius: "5px", cursor: 'default' // Prevent closing when clicking container
-				});
+                const isDarkMode = document.body.classList.contains('dark-mode');
+				Object.assign(container.style, { position: "relative", backgroundColor: isDarkMode ? "#333" : "#fff", color: isDarkMode ? "#ddd" : "#333", padding: "20px", maxWidth: "90vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 4px 15px rgba(0,0,0,0.4)", borderRadius: "5px", cursor: 'default' });
 
-				// Title
 				const titleEl = document.createElement("h2");
 				Object.assign(titleEl.style, { marginTop: "0", fontSize: "1.1em", marginBottom: "10px", borderBottom: `1px solid ${isDarkMode ? '#555' : '#ccc'}`, paddingBottom: '8px' });
 				titleEl.textContent = titleText || "Image";
 				container.appendChild(titleEl);
 
-				// Image
 				const imgEl = document.createElement("img");
 				imgEl.src = mediaUrl;
-				Object.assign(imgEl.style, {
-					maxWidth: "100%", maxHeight: "calc(80vh - 100px)", // Adjust height calculation
-					objectFit: "contain", display: "block", margin: "10px auto", borderRadius: "3px"
-				});
-                 imgEl.onerror = () => { imgEl.alt = "Image failed to load"; container.insertBefore(document.createTextNode("Image failed to load."), imgEl); imgEl.style.display = 'none'; };
+				Object.assign(imgEl.style, { maxWidth: "100%", maxHeight: "calc(80vh - 100px)", objectFit: "contain", display: "block", margin: "10px auto", borderRadius: "3px" });
+                imgEl.onerror = () => { imgEl.alt = "Image failed to load"; container.insertBefore(document.createTextNode("Image failed to load."), imgEl); imgEl.style.display = 'none'; };
 				container.appendChild(imgEl);
 
-				// Caption
 				if (description) {
 					const captionEl = document.createElement("p");
 					Object.assign(captionEl.style, { fontSize: "0.9em", color: isDarkMode ? "#bbb" : "#555", marginTop: "10px", textAlign: 'center' });
@@ -1510,210 +1425,84 @@
 					container.appendChild(captionEl);
 				}
 
-				// Close button
 				const closeButton = document.createElement("span");
-				closeButton.innerHTML = "&times;"; // Use HTML entity for '×'
-				Object.assign(closeButton.style, {
-					position: "absolute", top: "10px", right: "15px", fontSize: "1.8em",
-					cursor: "pointer", color: "#aaa", lineHeight: '1'
-				});
+				closeButton.innerHTML = "&times;";
+				Object.assign(closeButton.style, { position: "absolute", top: "10px", right: "15px", fontSize: "1.8em", cursor: "pointer", color: "#aaa", lineHeight: '1' });
 				container.appendChild(closeButton);
 
-				// Append elements
 				overlay.appendChild(container);
 				document.body.appendChild(overlay);
 
-				// Event listeners for closing
-				const removeOverlay = () => {
-					if (document.body.contains(overlay)) {
-						document.body.removeChild(overlay);
-					}
-				};
+				const removeOverlay = () => { if (document.body.contains(overlay)) { document.body.removeChild(overlay); } };
 				closeButton.addEventListener("click", removeOverlay);
-				overlay.addEventListener("click", (e) => {
-                     if (e.target === overlay) { // Only close if clicking the background
-                         removeOverlay();
-                     }
-                });
-                 // Prevent container click from closing
-                 container.addEventListener('click', (e) => e.stopPropagation());
-
-                 // Close with Escape key
-                 const escapeKeyListener = (e) => {
-                     if (e.key === "Escape") {
-                         removeOverlay();
-                         document.removeEventListener('keydown', escapeKeyListener);
-                     }
-                 };
-                 document.addEventListener('keydown', escapeKeyListener);
+				overlay.addEventListener("click", (e) => { if (e.target === overlay) { removeOverlay(); } });
+                container.addEventListener('click', (e) => e.stopPropagation());
+                const escapeKeyListener = (e) => { if (e.key === "Escape") { removeOverlay(); document.removeEventListener('keydown', escapeKeyListener); } };
+                document.addEventListener('keydown', escapeKeyListener);
 			}
 
 
             // --- Animation Controller Class ---
-            // (Simplified for brevity - assumes structure from original file)
             class AnimationController {
                 constructor(map, options = {}) {
                     this.map = map;
                     this.updateInterval = options.updateInterval || 50;
-                    this.dayTickInterval = options.dayTickInterval || 16; // ~60fps target for day advancement check
+                    this.dayTickInterval = options.dayTickInterval || 16;
                     this.isPlaying = false;
-                    this.startDate = null;
-                    this.endDate = null;
-                    this.currentDate = null;
-                    this.animationSpeed = options.initialSpeed || 1; // days per second
-                    this.visualUpdateTimer = null;
-                    this.dayTickTimer = null;
+                    this.startDate = null; this.endDate = null; this.currentDate = null;
+                    this.animationSpeed = options.initialSpeed || 1;
+                    this.visualUpdateTimer = null; this.dayTickTimer = null;
                     this.onVisualize = options.onVisualize || (() => {});
                     this.onDateUpdate = options.onDateUpdate || (() => {});
                     this.onComplete = options.onComplete || (() => {});
                     this.debug = options.debug || false;
-
                     this.lastDayTick = 0;
-                    this.accumulatedTime = 0; // For smoother day advancement
                 }
-
                 setDateRange(startDate, endDate, currentDate = null) {
-                    if (!startDate || !endDate || !startDate.isValid() || !endDate.isValid()) {
-                        console.error("Invalid date range provided to AnimationController");
-                        return this;
-                    }
-                    this.startDate = moment(startDate);
-                    this.endDate = moment(endDate);
+                    if (!startDate || !endDate || !startDate.isValid() || !endDate.isValid()) { console.error("Invalid date range"); return this; }
+                    this.startDate = moment(startDate); this.endDate = moment(endDate);
                     this.currentDate = currentDate && currentDate.isValid() ? moment(currentDate) : moment(startDate);
-
-                    if (this.debug) console.log("Animation dates set:", this.startDate.format(), this.endDate.format(), this.currentDate.format());
-
-                    this.updateDateDisplay(); // Update UI
-                    this.visualize(); // Initial visualization
-                    return this;
+                    if (this.debug) console.log("Dates set:", this.startDate.format(), this.endDate.format(), this.currentDate.format());
+                    this.updateDateDisplay(); this.visualize(); return this;
                 }
-
-                setSpeed(speed) {
-                    this.animationSpeed = Math.max(0.1, speed); // Ensure speed is positive
-                    if (this.debug) console.log("Animation speed set to:", this.animationSpeed);
-                    // No need to restart playback, interval logic handles speed change
-                    return this;
-                }
-
+                setSpeed(speed) { this.animationSpeed = Math.max(0.1, speed); if (this.debug) console.log("Speed:", this.animationSpeed); return this; }
                 jumpToDate(date) {
-                     if (!this.startDate || !this.endDate) return this; // Need date range
-                     const newDate = moment(date);
-                     if (!newDate.isValid()) return this; // Ignore invalid jumps
-
-                    // Clamp date within the allowed range
-                    if (newDate < this.startDate) this.currentDate = moment(this.startDate);
-                    else if (newDate > this.endDate) this.currentDate = moment(this.endDate);
-                    else this.currentDate = newDate;
-
-                    if (this.debug) console.log("Jumped to date:", this.currentDate.format());
-                    this.updateDateDisplay();
-                    this.visualize();
-                    return this;
+                     if (!this.startDate || !this.endDate) return this; const newDate = moment(date); if (!newDate.isValid()) return this;
+                    if (newDate < this.startDate) this.currentDate = moment(this.startDate); else if (newDate > this.endDate) this.currentDate = moment(this.endDate); else this.currentDate = newDate;
+                    if (this.debug) console.log("Jumped:", this.currentDate.format()); this.updateDateDisplay(); this.visualize(); return this;
                 }
-
                 _advanceDayTick(elapsedMs) {
                      if (!this.isPlaying || !this.currentDate || !this.endDate || !this.startDate) return;
-
-                     // Calculate how many days should have passed based on speed and elapsed time
-                     const daysPerMs = this.animationSpeed / 1000;
-                     const daysToAdvance = elapsedMs * daysPerMs;
-
-                     this.currentDate.add(daysToAdvance * 86400 * 1000, 'milliseconds'); // Advance precisely
-
-                     // Check if animation finished
+                     const daysPerMs = this.animationSpeed / 1000; const daysToAdvance = elapsedMs * daysPerMs;
+                     this.currentDate.add(daysToAdvance * 86400 * 1000, 'milliseconds');
                      if (this.currentDate >= this.endDate) {
-                         this.currentDate = moment(this.endDate); // Clamp to end date
-                         this.pause(); // Stop playback
-                         this.onComplete(); // Trigger completion callback
-                         if (this.debug) console.log("Animation complete.");
+                         this.currentDate = moment(this.endDate); this.pause(); this.onComplete(); if (this.debug) console.log("Complete.");
                      }
-                     this.updateDateDisplay(); // Update UI slider/text
+                     this.updateDateDisplay();
                 }
-
-
                 play() {
-                    if (this.isPlaying || !this.startDate || !this.endDate) return false; // Already playing or dates not set
-
-                    // If at end, restart first
-                    if (this.currentDate >= this.endDate) {
-                        this.restart();
-                    }
-
-                    this.isPlaying = true;
-                    document.body.classList.add("animation-active");
-                    if (this.debug) console.log("Animation playing...");
-
-                    // --- Visual Update Timer (throttled) ---
-                    // Use setInterval for regular visual updates, independent of day ticks
-                    this.visualUpdateTimer = setInterval(() => {
-                         if (!document.hidden) { // Don't visualize if tab is hidden
-                            this.visualize();
-                         }
-                    }, this.updateInterval);
-
-
-                    // --- Day Advancement Timer (more precise) ---
-                    // Use requestAnimationFrame for smoother time progression if possible, fallback to setInterval
+                    if (this.isPlaying || !this.startDate || !this.endDate) return false;
+                    if (this.currentDate >= this.endDate) { this.restart(); }
+                    this.isPlaying = true; document.body.classList.add("animation-active"); if (this.debug) console.log("Playing...");
+                    this.visualUpdateTimer = setInterval(() => { if (!document.hidden) { this.visualize(); } }, this.updateInterval);
                     this.lastDayTick = performance.now();
                     const tick = (now) => {
-                        if (!this.isPlaying) return; // Stop if paused
-
-                        const elapsed = now - this.lastDayTick;
-                        this.lastDayTick = now;
-
-                        if (!document.hidden) { // Only advance time if tab is visible
-                            this._advanceDayTick(elapsed);
-                        }
-
-                        this.dayTickTimer = requestAnimationFrame(tick); // Loop
+                        if (!this.isPlaying) return; const elapsed = now - this.lastDayTick; this.lastDayTick = now;
+                        if (!document.hidden) { this._advanceDayTick(elapsed); }
+                        this.dayTickTimer = requestAnimationFrame(tick);
                     };
                     this.dayTickTimer = requestAnimationFrame(tick);
-
-
-                    return true; // Successfully started
-                }
-
-                pause() {
-                    if (!this.isPlaying) return false; // Already paused
-                    this.isPlaying = false;
-                    document.body.classList.remove("animation-active");
-
-                    // Clear timers
-                    clearInterval(this.visualUpdateTimer);
-                    this.visualUpdateTimer = null;
-                    if (typeof cancelAnimationFrame === 'function') {
-                         cancelAnimationFrame(this.dayTickTimer);
-                    }
-                    this.dayTickTimer = null;
-
-
-                    if (this.debug) console.log("Animation paused.");
-                    // Ensure final state is visualized correctly after pausing
-                    this.visualize();
-                    return true; // Successfully paused
-                }
-
-                restart() {
-                    if (!this.startDate) return false; // Cannot restart if dates not set
-                    this.pause(); // Ensure timers are stopped
-                    this.jumpToDate(this.startDate); // Reset date and visualize
-                    if (this.debug) console.log("Animation restarted.");
                     return true;
                 }
-
-                visualize() {
-                    if (this.currentDate && this.currentDate.isValid()) {
-                        this.onVisualize(this.currentDate); // Call the provided visualization function
-                    }
-                    return this;
+                pause() {
+                    if (!this.isPlaying) return false; this.isPlaying = false; document.body.classList.remove("animation-active");
+                    clearInterval(this.visualUpdateTimer); this.visualUpdateTimer = null;
+                    if (typeof cancelAnimationFrame === 'function') { cancelAnimationFrame(this.dayTickTimer); } this.dayTickTimer = null;
+                    if (this.debug) console.log("Paused."); this.visualize(); return true;
                 }
-
-                updateDateDisplay() {
-                     if (this.currentDate && this.currentDate.isValid()) {
-                        this.onDateUpdate(this.currentDate); // Call the provided UI update function
-                    }
-                    return this;
-                }
+                restart() { if (!this.startDate) return false; this.pause(); this.jumpToDate(this.startDate); if (this.debug) console.log("Restarted."); return true; }
+                visualize() { if (this.currentDate && this.currentDate.isValid()) { this.onVisualize(this.currentDate); } return this; }
+                updateDateDisplay() { if (this.currentDate && this.currentDate.isValid()) { this.onDateUpdate(this.currentDate); } return this; }
             }
 
 		</script>
