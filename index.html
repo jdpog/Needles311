@@ -386,64 +386,81 @@
 
 			/* --- Responsive Adjustments --- */
 			@media (max-width: 992px) {
-    html, body {
-        /* Ensure no unexpected overflow restrictions on root elements */
-        overflow: visible; /* Allow body to scroll */
+ @media (max-width: 992px) {
+    *, /* Apply border-box to all elements */
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    html {
+         /* Ensure no unexpected overflow restrictions */
+        overflow-x: hidden; /* Keep horizontal restriction */
+        overflow-y: auto;   /* Explicitly allow vertical scroll */
+        height: 100%;
+    }
+
+    body {
+        margin: 0; /* Reset default body margin */
         height: auto; /* Allow body height to adapt */
+        overflow: visible; /* Let body content flow */
+        min-height: 100%; /* Ensure body can contain scrolling content */
     }
 
     .page-container {
         display: flex;
         flex-direction: column;
-        /* Remove fixed height constraints to allow natural scrolling */
         height: auto;
         max-height: none;
-        /* Ensure this container itself is not preventing scrolling */
-        overflow: visible; /* Let the body handle scrolling */
-        width: 100%; /* Ensure it takes full width */
+        overflow: visible; /* Important: Let body handle scrolling */
+        width: 100%;
+        min-height: 100vh; /* Ensure container fills viewport height */
     }
 
     .content-section {
-        display: contents; /* Keep this, makes map/info direct flex items */
+        display: contents;
     }
 
     .map-container {
         order: 1;
-        height: 50vh;       /* Keep desired height */
-        min-height: 300px;  /* Keep minimum height */
+        height: 50vh;
+        min-height: 300px;
         position: sticky;
-        top: 0;             /* Stick map to the very top */
+        top: 0; /* Stick map exactly at the top */
         z-index: 1001;
-        background-color: #fff; /* Keep background */
+        background-color: #fff;
          body.dark-mode & { background-color: #222; }
+         /* Add will-change to potentially help performance/rendering */
+         will-change: transform;
     }
 
     .controls-section {
         order: 2;
         position: sticky;
-        /* Use the map's min-height for a more fixed reference */
-        top: 50vh; /* Stick controls below the map's min-height */
-        /* If 50vh consistently works better, you can try 'top: 50vh;' again */
+        top: 300px; /* Stick controls below the map's min-height */
+        /* Or try top: 50vh; if map height is consistently 50vh */
         z-index: 1000;
-        background-color: #f9f9f9; /* Keep background */
+        background-color: #f9f9f9;
          body.dark-mode & { background-color: #2a2a2a; }
-        /* Add some margin below if needed to space from content */
-        /* margin-bottom: 10px; */
+         /* Add will-change */
+         will-change: transform;
     }
 
-    .settings-section { /* If you display settings, ensure they scroll */
+    .settings-section {
         order: 3;
         max-height: none;
-        overflow-y: visible; /* Part of scrolling content */
+        overflow-y: visible;
     }
 
     .info-panel {
         order: 4;
         max-height: none;
-        overflow-y: visible; /* Part of scrolling content */
+        overflow-y: visible;
         padding-bottom: 15px;
-        /* Content will naturally start below the sticky elements */
-        width: 100%; /* Ensure full width */
+        width: 100%;
+        /* Add margin-top to clear the sticky header visually if needed, */
+        /* but scrolling should handle the overlap naturally */
+        /* margin-top: calc(300px + 70px); /* Example if controls height is 70px */
     }
 
     /* --- Keep other mobile styles --- */
