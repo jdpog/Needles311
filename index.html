@@ -730,6 +730,30 @@
                     openPopupLocationKey = null;
                 });
 
+                // *** FIX: Add listener for popupopen to attach image click handlers ***
+                map.on('popupopen', function (e) {
+                    if (e.popup && e.popup.getElement()) { // Check if popup and its element exist
+                        // Find images within the opened popup that have the specific class
+                        const images = e.popup.getElement().querySelectorAll('.popup-report-image');
+                        images.forEach(img => {
+                            // Prevent adding the listener multiple times if the popup re-opens
+                            if (!img.dataset.listenerAttached) {
+                                 img.addEventListener('click', function() {
+                                    // Read data attributes from the clicked image
+                                    const url = this.dataset.mediaUrl;
+                                    const desc = this.dataset.description;
+                                    const title = this.dataset.title;
+                                    // Call showFullSizeImage with the retrieved data
+                                    showFullSizeImage(url, desc, title);
+                                });
+                                // Mark that the listener has been attached to this image
+                                img.dataset.listenerAttached = 'true';
+                            }
+                        });
+                    }
+                });
+                // *** END FIX ***
+
                 // Add Legend initially if markers are shown
                 if (document.getElementById("toggleMarkers").checked) {
                     addLegend();
@@ -1149,7 +1173,9 @@
                                 // Unbind, re-bind detailed content, and open
                                 // (Re-binding ensures it's the top popup if already open and content might have changed)
                                 this.unbindPopup();
-                                this.bindPopup(detailContent, persistentPopupOptions);
+                                // Re-generate content just before opening to ensure it's fresh
+                                const freshDetailContent = updateDetailedInfoPanel(locationData, relevantReportsForMarker, targetDate);
+                                this.bindPopup(freshDetailContent, persistentPopupOptions);
                                 this.openPopup();
                             });
 
@@ -1186,6 +1212,8 @@
                 if (showHeatmap) {
                     heatLayer.setLatLngs(heatData);
                 }
+                // *** FIX: Removed the 'else' block that called setLatLngs([]) ***
+                // No need to clear heatmap data here; it's removed in handleViewToggle
 
                 // Update Statistics Display (reflects current view + date)
                 document.getElementById("totalReports").textContent = totalReportCount;
@@ -1218,17 +1246,21 @@
 						itemHTML += `<div style="font-size: 0.9em; margin-top: 3px;">${safeDescription}</div>`;
 					}
 					if (report.data.media_url && report.data.media_url.trim() !== "") {
-						// Escape values properly for the onclick handler
-						const safeMediaUrl = JSON.stringify(report.data.media_url);
-						const safeDescForPopup = JSON.stringify(report.data.description || "");
-						const titleText = JSON.stringify(`${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`);
+                        // *** FIX: Use data attributes instead of inline onclick ***
+                        const mediaUrl = report.data.media_url || ""; // Use raw url
+                        const description = report.data.description || ""; // Use raw description
+                        const titleText = `${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`; // Use raw title
 
-						itemHTML += `<div style="margin-top: 5px;">
-						   <img src="${report.data.media_url}" alt="Report media" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer; border-radius: 3px;"
-							onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-							onclick='showFullSizeImage(${safeMediaUrl}, ${safeDescForPopup}, ${titleText})'>
-						   <span style="display: none; font-size: 0.8em; color: #888;">(Image not available)</span>
-						 </div>`;
+                        itemHTML += `<div style="margin-top: 5px;">
+                           <img src="${mediaUrl}" alt="Report media" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer; border-radius: 3px;"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                            data-media-url="${mediaUrl.replace(/"/g, '&quot;')}"
+                            data-description="${description.replace(/"/g, '&quot;')}"
+                            data-title="${titleText.replace(/"/g, '&quot;')}"
+                            class="popup-report-image">
+                           <span style="display: none; font-size: 0.8em; color: #888;">(Image not available)</span>
+                         </div>`;
+                        // *** END FIX ***
 					}
 					itemHTML += `</div>`;
 					return itemHTML;
@@ -1239,8 +1271,8 @@
 					<div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
 						<h4 style="margin:0 0 5px 0; font-size:1.1em;">${locationData.address}</h4>
 						<p style="font-size: 0.9em; margin: 0 0 8px 0; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-							Total Reports (to date): ${filteredReportsForLocation.length}<br>
-							<span style="color: #555;">Oldest: ${oldestReport.date.format("MMM D, YYYY")}<br>Newest: ${newestReport.date.format("MMM D, YYYY")}</span>
+							Total Reports at Location (to date): ${filteredReportsForLocation.length}<br>
+							<span style="color: #555;">Oldest: ${oldestReport.date.format("MMM D, YYYY")} | Newest: ${newestReport.date.format("MMM D, YYYY")}</span>
 						</p>
 						${listHTML}
 					</div>`;
