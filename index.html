@@ -1239,8 +1239,8 @@
 					<div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
 						<h4 style="margin:0 0 5px 0; font-size:1.1em;">${locationData.address}</h4>
 						<p style="font-size: 0.9em; margin: 0 0 8px 0; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-							Total Reports at Location (to date): ${filteredReportsForLocation.length}<br>
-							<span style="color: #555;">Oldest: ${oldestReport.date.format("MMM D, YYYY")} | Newest: ${newestReport.date.format("MMM D, YYYY")}</span>
+							Total Reports (to date): ${filteredReportsForLocation.length}<br>
+							<span style="color: #555;">Oldest: ${oldestReport.date.format("MMM D, YYYY")}<br>Newest: ${newestReport.date.format("MMM D, YYYY")}</span>
 						</p>
 						${listHTML}
 					</div>`;
