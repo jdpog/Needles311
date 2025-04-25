@@ -1183,8 +1183,9 @@
 
 
                 // Update Heatmap Layer
-                if (showHeatmap) { heatLayer.setLatLngs(heatData); }
-                else { heatLayer.setLatLngs([]); } // Clear heatmap if toggled off
+                if (showHeatmap) {
+                    heatLayer.setLatLngs(heatData);
+                }
 
                 // Update Statistics Display (reflects current view + date)
                 document.getElementById("totalReports").textContent = totalReportCount;
