@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A visualization of Boston 311 needle reports that shows how the reports have changed both geographically and over time." />
-    <meta name="author" content="Jerome Parker-O'Grady" />
-    <title>Boston Needle Reports Visualization (Cleaned)</title>
+    <meta name="description" content="A visualization of Boston 311 needle reports using deck.gl." />
+    <meta name="author" content="Jerome Parker-O'Grady (Adapted with deck.gl)" />
+    <title>Boston Needle Reports Visualization (deck.gl)</title>
 
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -13,7 +13,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?" />
     <link rel="manifest" href="/site.webmanifest" />
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
 
     <style>
         /* --- Base Styles --- */
@@ -76,11 +76,13 @@
             height: 100%;
             width: 100%;
         }
+        /* Style for the map container div used by Mapbox/deck.gl */
         #map {
-            height: 100%;
+            position: absolute;
+            top: 0;
+            bottom: 0;
             width: 100%;
-            contain: strict; /* Performance optimization for layout */
-            will-change: transform; /* Hint for GPU acceleration */
+            height: 100%;
         }
         .info-panel {
             grid-area: info;
@@ -91,19 +93,22 @@
             overflow-y: auto; /* Allow scrolling within the panel */
         }
 
-        /* --- Leaflet Popups --- */
-        .leaflet-popup-content-wrapper,
-        .leaflet-popup-content,
-        .leaflet-popup-tip {
-            background-color: #f0f8ff; /* Light blue background */
+        /* --- Popups (Custom Div for deck.gl) --- */
+        #tooltip {
+            position: absolute;
+            background: #f0f8ff;
             color: #333;
-        }
-        .leaflet-popup-content-wrapper {
-            width: 250px; /* Fixed width for consistency */
-            max-width: 250px;
+            padding: 5px 10px;
             border-radius: 5px;
+            font-size: 0.9em;
+            max-width: 250px;
+            z-index: 10; /* Ensure it's above map but below other UI */
+            pointer-events: none; /* Allow clicks to pass through */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            white-space: normal; /* Allow wrapping */
+            border: 1px solid #ccc;
         }
-        .report-item { /* Individual report details in popup */
+         #tooltip .report-item { /* Style report items within tooltip */
             background: white;
             border-radius: 5px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -113,14 +118,17 @@
             font-family: Arial, sans-serif;
             font-size: 0.9em;
         }
-        .leaflet-container a.leaflet-popup-close-button {
-            /* Adjust close button position for better touch target */
-            top: 10px;
-            right: 10px;
+        #tooltip img.popup-report-image { /* Make images clickable inside tooltip */
+             cursor: pointer;
+             pointer-events: auto; /* Allow clicks on images */
         }
+
 
         /* --- Map Legend --- */
         .legend {
+            position: absolute; /* Position relative to map container */
+            bottom: 30px;
+            right: 10px;
             padding: 6px 8px;
             background: rgba(255, 255, 255, 0.8);
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
@@ -128,6 +136,7 @@
             line-height: 24px;
             color: #555;
             font-size: 0.9em;
+            z-index: 1; /* Above map tiles */
         }
         .legend h4 {
             margin-bottom: 5px;
@@ -138,14 +147,22 @@
             height: 18px;
             float: left;
             margin-right: 8px;
-            opacity: 0.7;
+            opacity: 0.7; /* Default opacity for swatch */
             border-radius: 50%; /* Make swatches circular */
+            display: inline-block; /* Ensure proper layout */
+            vertical-align: middle; /* Align with text */
         }
         .legend div { /* Spacing for legend items */
             margin-bottom: 4px;
             display: flex;
             align-items: center;
         }
+        .legend .legend-item-text {
+             display: inline-block;
+             vertical-align: middle;
+             margin-left: 5px; /* Space between icon and text */
+        }
+
 
         /* --- Controls & Settings Panel --- */
         .animation-controls { /* Container for playback controls */
@@ -294,11 +311,6 @@
         }
 
         /* --- Performance & Animation --- */
-        /* Hint for GPU acceleration on elements that might change */
-        .leaflet-tile-container,
-        .leaflet-marker-pane {
-            will-change: transform;
-        }
         body.animation-active .animation-controls {
             background-color: #e6f7ff; /* Highlight controls during animation */
         }
@@ -329,12 +341,16 @@
             border-color: #555;
             color: #ddd !important;
         }
-        body.dark-mode .leaflet-popup-content-wrapper,
-        body.dark-mode .leaflet-popup-content,
-        body.dark-mode .leaflet-popup-tip {
+         /* Dark mode for tooltip */
+        body.dark-mode #tooltip {
             background-color: #3a3a3a !important;
             color: #ddd !important;
+            border-color: #555;
         }
+         body.dark-mode #tooltip .report-item {
+             background: #505050; /* Slightly lighter background for items */
+         }
+
         body.dark-mode .legend {
             background: rgba(50, 50, 50, 0.8);
             color: #ccc;
@@ -357,6 +373,14 @@
         body.dark-mode .info-panel a:hover {
             color: #ccc;
         }
+        /* Dark mode for Mapbox controls */
+        body.dark-mode .mapboxgl-ctrl-group button {
+            background-color: #555;
+        }
+         body.dark-mode .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+             filter: invert(100%); /* Simple way to make icons visible */
+         }
+
 
         /* --- Responsive Adjustments --- */
         @media (max-width: 992px) {
@@ -443,14 +467,11 @@
                 transform: scale(0.8);
                 transform-origin: bottom right;
             }
-            .leaflet-popup-content-wrapper {
-                transform: scale(0.9);
-                transform-origin: bottom;
-            }
-            .leaflet-container a.leaflet-popup-close-button {
-                top: 5px; /* Adjust close button for scaled popup */
-                right: 5px;
-            }
+             #tooltip {
+                 transform: scale(0.9);
+                 transform-origin: bottom left; /* Adjust origin */
+             }
+
             .time-slider-container {
                 min-width: 200px; /* Ensure slider has some minimum width */
             }
@@ -523,11 +544,10 @@
         }
     </style>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js" defer></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js' defer></script>
+    <script src='https://unpkg.com/deck.gl@latest/dist.min.js' defer></script>
     <script src="data/last_update.js" defer></script>
 
 </head>
@@ -540,6 +560,8 @@
         <div class="content-section">
             <div class="map-container">
                 <div id="map"></div>
+                <div id="tooltip" style="display: none;"></div>
+                <div id="legend-container"></div>
             </div>
 
             <div class="info-panel">
@@ -632,25 +654,29 @@
     </div>
 
     <script>
+        // --- Shim for libraries expecting 'global' (like some UMD builds) ---
+        if (typeof global === 'undefined') {
+            window.global = window;
+        }
+
         // --- Global Variables & Configuration ---
+        const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoianBhcmtlcm9ncmFkeSIsImEiOiJjbDVheWQ5eG4wMmR1M2pxczFmdDY2NjQ4In0.B9YIzwi0tA5vyiToNoVQ1Q'; // <-- REPLACE WITH YOUR TOKEN!
         let CENTER_LAT = 42.32995; // Default center (near MassArt)
         let CENTER_LNG = -71.11142;
         let RADIUS_MILES = 0.25; // Default radius
         let RADIUS_METERS = RADIUS_MILES * 1609.34;
 
         let csvData = []; // Stores the raw loaded report data (from JSON)
-        let allReports = []; // Stores processed reports within the current radius/filter (used for heatmap/stats)
-        let reportsByLocation = new Map(); // Groups reports by location key for markers
+        let allReports = []; // Stores processed reports within the current radius/filter
+        let reportsByLocation = new Map(); // Groups reports by location key for marker display
 
         let startDate = null; // Global start date for the entire dataset
         let endDate = null;   // Global end date for the entire dataset
 
-        // Leaflet map instance and layers
-        let map = null;
-        let heatLayer = null;
-        let markersLayer = null;
-        let radiusCircle = null;
-        let centerMarker = null;
+        // deck.gl and Mapbox instances
+        let deck = null;
+        let map = null; // Mapbox GL JS map instance
+        let currentLayers = []; // Store current deck.gl layers
 
         // Chart.js instance
         let yearlyReportsChart = null;
@@ -659,7 +685,7 @@
         let animationController = null;
 
         // State tracking for persistent popup
-        let openPopupLocationKey = null; // Stores the key (e.g., address or coords) of the marker with the open popup
+        let openPopupInfo = null; // Stores info {object, x, y} of the currently open popup
 
         // --- Utility Functions ---
 
@@ -683,22 +709,50 @@
 
         /**
          * Checks if a given latitude/longitude is within the current search radius.
-         * @param {number} lat - Latitude.
+         * Uses deck.gl/Mapbox compatible longitude/latitude order.
          * @param {number} lng - Longitude.
+         * @param {number} lat - Latitude.
          * @returns {boolean} True if within radius, false otherwise.
          */
-        function isWithinRadius(lat, lng) {
+        function isWithinRadius(lng, lat) {
             if (RADIUS_METERS === -1) return true; // Max radius means no filtering
             if (isNaN(lat) || isNaN(lng) || isNaN(CENTER_LAT) || isNaN(CENTER_LNG)) return false;
-            try {
-                const centerPoint = L.latLng(CENTER_LAT, CENTER_LNG);
-                const reportPoint = L.latLng(lat, lng);
-                return centerPoint.distanceTo(reportPoint) <= RADIUS_METERS;
-            } catch (e) {
-                console.warn("Error calculating distance:", lat, lng, e);
-                return false;
-            }
+
+            // Haversine distance calculation (more accurate for spherical distances)
+            const R = 6371e3; // Earth radius in meters
+            const phi1 = CENTER_LAT * Math.PI / 180; // φ, λ in radians
+            const phi2 = lat * Math.PI / 180;
+            const deltaPhi = (lat - CENTER_LAT) * Math.PI / 180;
+            const deltaLambda = (lng - CENTER_LNG) * Math.PI / 180;
+
+            const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+                      Math.cos(phi1) * Math.cos(phi2) *
+                      Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            const distance = R * c; // Distance in meters
+            return distance <= RADIUS_METERS;
         }
+
+        // Function to generate points for a circle (for radius visualization)
+        function createCirclePoints(centerLng, centerLat, radiusMeters, numPoints = 64) {
+            const points = [];
+            const earthRadius = 6371000; // meters
+            const latRad = centerLat * Math.PI / 180;
+            const lonRad = centerLng * Math.PI / 180;
+            const dRad = radiusMeters / earthRadius; // angular distance in radians
+
+            for (let i = 0; i < numPoints; i++) {
+                const angle = (i / numPoints) * 2 * Math.PI;
+                const lat2Rad = Math.asin(Math.sin(latRad) * Math.cos(dRad) + Math.cos(latRad) * Math.sin(dRad) * Math.cos(angle));
+                const lon2Rad = lonRad + Math.atan2(Math.sin(angle) * Math.sin(dRad) * Math.cos(latRad), Math.cos(dRad) - Math.sin(latRad) * Math.sin(lat2Rad));
+
+                points.push([lon2Rad * 180 / Math.PI, lat2Rad * 180 / Math.PI]);
+            }
+            points.push(points[0]); // Close the circle
+            return points;
+        }
+
 
         // --- Initialization ---
 
@@ -706,69 +760,93 @@
          * Main initialization function called when the DOM is ready.
          */
         function initializeApp() {
-            initializeMap();
+            // Check for Mapbox token
+            if (!MAPBOX_ACCESS_TOKEN || MAPBOX_ACCESS_TOKEN === 'YOUR_MAPBOX_ACCESS_TOKEN') {
+                 alert('Mapbox Access Token is missing! Please replace YOUR_MAPBOX_ACCESS_TOKEN in the script.');
+                 console.error('Mapbox Access Token is missing!');
+                 // Optionally disable map-related UI elements
+                 return;
+            }
+            initializeMap(); // Initialize map first
             initializeUI();
-            loadData();
+            loadData(); // Load data, which will trigger processing and initial visualization
             displayLastUpdateTime();
+            initializeLegend(); // Initialize the legend
         }
 
         /**
-         * Initializes the Leaflet map, layers, and controls.
+         * Initializes the Mapbox GL JS map and the deck.gl instance.
          */
         function initializeMap() {
-            // Define base layers
-            const lightLayer = L.tileLayer(
-                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-                    attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-                    subdomains: "abcd", maxZoom: 19
-                }
-            );
-            const darkLayer = L.tileLayer(
-                "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-                    attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-                    subdomains: "abcd", maxZoom: 19
-                }
-            );
-            const bwLayer = L.tileLayer(
-                "https://api.maptiler.com/maps/toner-v2/{z}/{x}/{y}.png?key=XyTvOTvEcdEh8fz4uDpw", { // Replace with your MapTiler key if needed
-                    attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; OpenStreetMap contributors',
-                    maxZoom: 19
-                }
-            );
+            try {
+                map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/light-v11', // Start with light style
+                    center: [CENTER_LNG, CENTER_LAT],
+                    zoom: 15, // Initial zoom level (adjust as needed)
+                    accessToken: MAPBOX_ACCESS_TOKEN
+                });
 
-            // Initialize map with Canvas renderer preferred
-            map = L.map("map", {
-                layers: [lightLayer], // Start with light layer
-                preferCanvas: true,
-                zoomControl: true // Ensure zoom control is added
-            }).setView([CENTER_LAT, CENTER_LNG], 16);
+                deck = new deck.DeckGL({
+                    mapboxApiAccessToken: MAPBOX_ACCESS_TOKEN,
+                    mapStyle: 'mapbox://styles/mapbox/light-v11', // Ensure deck.gl knows the style
+                    initialViewState: {
+                        longitude: CENTER_LNG,
+                        latitude: CENTER_LAT,
+                        zoom: 15,
+                        pitch: 0,
+                        bearing: 0
+                    },
+                    controller: true, // Enable map controls (zoom, pan)
+                    layers: [], // Start with empty layers
+                    // Picking configuration for popups
+                    pickable: true, // Enable picking for layers that set pickable=true
+                    onClick: handleDeckClick,
+                    onHover: handleDeckHover,
+                    getTooltip: ({object}) => { // Basic tooltip on hover (optional)
+                        if (!object || !object.properties || !object.properties.options) return null;
+                        const { address } = object.properties.options;
+                        return address ? `${address}` : null;
+                    }
+                    // Link deck.gl view state changes to Mapbox map
+                    // onViewStateChange: ({ viewState }) => {
+                    //     map.jumpTo({
+                    //         center: [viewState.longitude, viewState.latitude],
+                    //         zoom: viewState.zoom,
+                    //         pitch: viewState.pitch,
+                    //         bearing: viewState.bearing
+                    //     });
+                    // }
+                });
 
-            // Add layer control
-            const baseMaps = { "Light": lightLayer, "Dark": darkLayer, "B&W": bwLayer };
-            L.control.layers(baseMaps).addTo(map);
+                 // Add Mapbox navigation control
+                 map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-            // Initialize data layers
-            heatLayer = L.heatLayer([], { radius: 25, blur: 20, maxZoom: 17 });
-            markersLayer = L.layerGroup().addTo(map); // Add marker layer immediately
+                 // Handle Mapbox style changes to update deck.gl and body class
+                 map.on('style.load', () => {
+                     const styleUrl = map.getStyle().stylesheet.sprite; // Heuristic to detect dark/light
+                     const isDarkMode = styleUrl && styleUrl.includes('dark');
+                     console.log("Map style loaded. Dark mode:", isDarkMode);
+                     if (isDarkMode) {
+                         document.body.classList.add("dark-mode");
+                         deck.setProps({ mapStyle: 'mapbox://styles/mapbox/dark-v11' });
+                     } else {
+                         document.body.classList.remove("dark-mode");
+                          deck.setProps({ mapStyle: 'mapbox://styles/mapbox/light-v11' });
+                     }
+                     // Re-render layers after style change if needed
+                     if (animationController && animationController.currentDate) {
+                        visualizeDataAtDate(animationController.currentDate);
+                     }
+                 });
 
-            // Radius circle and center marker
-            radiusCircle = L.circle([CENTER_LAT, CENTER_LNG], {
-                color: "#3388ff", fillColor: "#3388ff", fillOpacity: 0,
-                radius: RADIUS_METERS, weight: 1.5, interactive: false // Make circle non-interactive
-            }).addTo(map);
-            centerMarker = L.marker([CENTER_LAT, CENTER_LNG])
-                .bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`)
-                .addTo(map);
+                 // Handle map movement to update center coordinates and potentially re-filter
+                 map.on('moveend', debounce(handleMapMoveEnd, 400));
 
-            // Map event listeners
-            map.on('popupclose', () => { openPopupLocationKey = null; }); // Clear state on any popup close
-            map.on('popupopen', handlePopupOpen); // Attach image listeners when popup opens
-            map.on("baselayerchange", handleBaseLayerChange); // Handle dark mode toggle
-            map.on("moveend", debounce(handleMapMoveEnd, 400)); // Handle map panning/zooming
 
-            // Add Legend initially if markers are shown
-            if (document.getElementById("toggleMarkers").checked) {
-                addLegend();
+            } catch (error) {
+                console.error("Error initializing Mapbox/deck.gl:", error);
+                alert("Error initializing the map. Please check the console and ensure your Mapbox token is valid.");
             }
         }
 
@@ -816,15 +894,15 @@
             document.getElementById("toggleMarkerGrouping").addEventListener("change", () => processData(csvData)); // Re-filter/group data
 
             // --- Animation Controller Setup ---
-            animationController = new AnimationController(map, {
+            animationController = new AnimationController(map, { // Pass map instance (though not directly used by controller now)
                 initialSpeed: 1,
-                updateInterval: 50, // Interval for visualization updates (ms)
+                updateInterval: 75, // Slightly increase interval for deck.gl updates
                 dayTickInterval: 16, // Interval for date advancement (ms, ~60fps)
                 debug: false,
                 onVisualize: visualizeDataAtDate, // Visualization callback
                 onDateUpdate: (date) => { // UI date update callback
                     if (!animationController || !animationController.startDate) return;
-                    document.getElementById("currentDate").textContent = date.format("MMM D, YYYY");
+                    document.getElementById("currentDate").textContent = date.format("MMM D, YYYY"); // Corrected format
                     // Update slider based on days diff from the *global* start date
                     document.getElementById("timeSlider").value = date.diff(startDate, "days");
                 },
@@ -866,8 +944,34 @@
                 if (animationController) animationController.setSpeed(parseFloat(e.target.value));
             });
 
-            // Window Resize handler
-            window.addEventListener("resize", debounce(handleWindowResize, 250));
+            // Window Resize handler (deck.gl handles canvas resize automatically)
+            // window.addEventListener("resize", debounce(handleWindowResize, 250)); // No longer needed
+        }
+
+        /**
+         * Initializes the legend display.
+         */
+        function initializeLegend() {
+            const legendContainer = document.getElementById('legend-container');
+            if (!legendContainer) return;
+
+            const legendDiv = document.createElement('div');
+            legendDiv.className = 'legend'; // Apply existing CSS class
+            legendDiv.innerHTML = `
+                <h4>Legend</h4>
+                <div><i style="background:rgba(231, 76, 60, 0.7); width:8px; height:8px;"></i><span class="legend-item-text">Single Report</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.7); width:18px; height:18px;"></i><span class="legend-item-text">Multiple Reports</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.7); width:28px; height:28px;"></i><span class="legend-item-text">Many Reports</span></div>
+                <hr style="margin: 5px 0; border-top: 1px solid #ccc;">
+                <div><i style="background:rgba(231, 76, 60, 1.0); width: 18px; height: 18px;"></i><span class="legend-item-text">Recent (More Opaque)</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.6); width: 18px; height: 18px;"></i><span class="legend-item-text">~6 Months Old</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.2); width: 18px; height: 18px;"></i><span class="legend-item-text">12+ Months Old (Faded)</span></div>
+                <hr style="margin: 5px 0; border-top: 1px solid #ccc;">
+                <div><i style="background: linear-gradient(to right, blue, red, yellow); width: 100%; height: 10px; display: block; border-radius: 5px;"></i><span class="legend-item-text" style="margin-left:0; display:block; text-align: center;">Heatmap Intensity</span></div>
+                `;
+            legendContainer.appendChild(legendDiv);
+            // Initially hide/show based on toggle state
+            legendDiv.style.display = document.getElementById("toggleMarkers").checked ? 'block' : 'none';
         }
 
         /**
@@ -903,18 +1007,18 @@
         function handleMapMoveEnd() {
             if (!map) return;
             const center = map.getCenter();
+            CENTER_LNG = center.lng; // Update global center
             CENTER_LAT = center.lat;
-            CENTER_LNG = center.lng;
-            radiusCircle.setLatLng([CENTER_LAT, CENTER_LNG]);
-            centerMarker.setLatLng([CENTER_LAT, CENTER_LNG])
-                        .setPopupContent(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`);
+            console.log("Map move end. New Center:", CENTER_LNG, CENTER_LAT);
+
+            // Re-process data for the new view (filters by new radius/center)
             if (csvData.length > 0) {
-                processData(csvData); // Re-filter data for the new view
+                processData(csvData);
             }
         }
 
         /**
-         * Handles changes to the radius slider. Updates radius variables and circle display.
+         * Handles changes to the radius slider. Updates radius variables and triggers data reprocessing.
          * @param {number} value - The new slider value (radius in miles).
          * @param {HTMLElement} valueSpan - The element displaying the radius value.
          */
@@ -923,13 +1027,11 @@
             if (RADIUS_MILES >= 3.1) { // Use >= to include the max value
                 valueSpan.textContent = "MAX";
                 RADIUS_METERS = -1; // Special value for max radius (no filtering)
-                radiusCircle.setStyle({ opacity: 0, fillOpacity: 0 }); // Hide circle
             } else {
                 valueSpan.textContent = RADIUS_MILES.toFixed(2);
                 RADIUS_METERS = RADIUS_MILES * 1609.34;
-                radiusCircle.setRadius(RADIUS_METERS);
-                radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0 }); // Show circle outline
             }
+             // Update the radius circle layer (will be done in visualizeDataAtDate)
         }
 
         /**
@@ -946,85 +1048,116 @@
          * Handles changes to the heatmap/marker visibility toggles.
          */
         function handleViewToggle() {
-            if (!map) return;
+            if (!map || !deck) return;
             const showMarkers = document.getElementById("toggleMarkers").checked;
             const showHeatmap = document.getElementById("toggleHeatmap").checked;
+            console.log(`Toggling view: showMarkers=${showMarkers}, showHeatmap=${showHeatmap}`);
 
-            // Toggle Marker Layer and Legend
-            if (showMarkers) {
-                if (!map.hasLayer(markersLayer)) map.addLayer(markersLayer);
-                if (!map.legend) addLegend(); // Add legend if it doesn't exist
-            } else {
-                if (map.hasLayer(markersLayer)) map.removeLayer(markersLayer);
-                if (map.legend) { map.legend.remove(); map.legend = null; } // Remove legend
+            // Update legend visibility
+            const legendContainer = document.getElementById('legend-container');
+            if (legendContainer) {
+                legendContainer.style.display = showMarkers || showHeatmap ? 'block' : 'none'; // Show if either is visible
             }
 
-            // Toggle Heatmap Layer
-            if (showHeatmap) {
-                if (!map.hasLayer(heatLayer)) map.addLayer(heatLayer);
-            } else {
-                if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
-            }
-
-            // Re-visualize data based on current toggles and date
-            if (animationController && animationController.currentDate) {
+            // Trigger a re-render with updated layer visibility
+            // The actual visibility logic is handled within visualizeDataAtDate
+             if (animationController && animationController.currentDate) {
                 visualizeDataAtDate(animationController.currentDate);
             } else if (csvData.length > 0 && startDate) {
-                processData(csvData); // Fallback if controller not ready
+                processData(csvData); // Process and visualize initial state if needed
             }
         }
 
         /**
          * Handles changes in the base map layer (e.g., switching to Dark mode).
-         * @param {object} event - The Leaflet layer change event object.
+         * This is now handled by the Mapbox 'style.load' event listener in initializeMap.
          */
         function handleBaseLayerChange(event) {
-            if (event.name === "Dark") {
-                document.body.classList.add("dark-mode");
+           // Now handled by Mapbox style.load event
+           console.log("Base layer changed (event listener might be redundant now):", event);
+        }
+
+        /**
+         * Handles hover events on deck.gl layers (currently used for tooltip).
+         */
+        function handleDeckHover(info, event) {
+            const tooltip = document.getElementById('tooltip');
+            if (info.object) { // Hovering over a point
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${info.x}px`;
+                tooltip.style.top = `${info.y}px`;
+                 // Use getTooltip result which is simpler for hover
+                 tooltip.innerHTML = deck.getTooltip({object: info.object});
+                 // Clear any persistent popup if hovering
+                 if (openPopupInfo) {
+                     openPopupInfo = null; // Allow tooltip to show instead
+                 }
             } else {
-                document.body.classList.remove("dark-mode");
-            }
-            // Reinitialize/update chart for color changes if data is loaded
-            if (yearlyReportsChart && animationController && animationController.currentDate) {
-                initializeYearlyChart(); // Re-init to get correct colors
-                const reportsToDate = allReports.filter(report => report.date <= animationController.currentDate);
-                updateYearlyChart(reportsToDate, animationController.currentDate);
+                // If not hovering, hide tooltip unless a popup is open
+                if (!openPopupInfo) {
+                    tooltip.style.display = 'none';
+                }
             }
         }
 
-        /**
-         * Handles the window resize event. Invalidates map size and resizes chart.
-         */
-        function handleWindowResize() {
-            if (map) map.invalidateSize();
-            if (yearlyReportsChart) yearlyReportsChart.resize();
-        }
+         /**
+          * Handles click events on deck.gl layers for showing persistent popups.
+          */
+         function handleDeckClick(info, event) {
+             const tooltip = document.getElementById('tooltip');
+             if (info.object && info.object.properties && info.object.properties.options) { // Clicked on a point feature
+                 console.log("Deck clicked object:", info.object);
+                 const { locationKey, lat, lng, address, reports } = info.object.properties.options;
+
+                 // Prevent hiding tooltip immediately
+                 openPopupInfo = info; // Store info to keep tooltip open
+
+                 // Generate detailed content
+                 const locationDataForPopup = { lat, lng, address };
+                 const content = generatePopupContent(locationDataForPopup, reports, animationController.currentDate);
+
+                 // Update tooltip content and position
+                 tooltip.innerHTML = content;
+                 tooltip.style.left = `${info.x}px`;
+                 tooltip.style.top = `${info.y}px`;
+                 tooltip.style.display = 'block';
+                 tooltip.style.pointerEvents = 'auto'; // Make tooltip interactive
+
+                 // Re-attach image listeners
+                 attachImageListenersToPopup(tooltip);
+
+             } else {
+                 // Clicked outside any object, hide tooltip/popup
+                 openPopupInfo = null;
+                 tooltip.style.display = 'none';
+                 tooltip.style.pointerEvents = 'none';
+             }
+         }
+
 
         /**
-         * Handles the popup open event to attach click listeners to images within the popup.
-         * @param {object} e - The Leaflet popup open event object.
-         */
-        function handlePopupOpen(e) {
-            if (!e.popup || !e.popup.getElement()) return; // Check if popup and its element exist
+        * Attaches click listeners to images within the tooltip div.
+        * @param {HTMLElement} tooltipElement - The tooltip DOM element.
+        */
+        function attachImageListenersToPopup(tooltipElement) {
+            if (!tooltipElement) return;
 
-            // Find images within the opened popup that have the specific class
-            const images = e.popup.getElement().querySelectorAll('.popup-report-image');
+            const images = tooltipElement.querySelectorAll('.popup-report-image');
             images.forEach(img => {
-                // Prevent adding the listener multiple times if the popup re-opens
+                // Prevent adding multiple listeners
                 if (!img.dataset.listenerAttached) {
-                    img.addEventListener('click', function() {
-                        // Read data attributes from the clicked image
+                    img.addEventListener('click', function(e) {
+                        e.stopPropagation(); // Prevent tooltip from closing
                         const url = this.dataset.mediaUrl;
                         const desc = this.dataset.description;
                         const title = this.dataset.title;
-                        // Call showFullSizeImage with the retrieved data
                         showFullSizeImage(url, desc, title);
                     });
-                    // Mark that the listener has been attached to this image
                     img.dataset.listenerAttached = 'true';
                 }
             });
         }
+
 
         /**
          * Updates the enabled/disabled state of the 'Clear' filter button.
@@ -1051,6 +1184,7 @@
                         csvData = [];
                         return;
                     }
+                    console.log(`Loaded ${data.length} reports.`); // Log data load success
                     csvData = data; // Store raw data
 
                     calculateGlobalDateRange(csvData); // Calculate date range first
@@ -1066,14 +1200,19 @@
                         slider.disabled = false;
 
                         animationController.setDateRange(startDate, endDate, startDate); // Set range and initial date
+                        console.log("Animation controller date range set.");
                     } else {
                         console.error("Could not set date range for animation controller.");
                         document.getElementById('timeSlider').disabled = true;
                     }
 
                     // Process data for the initial view (start date)
+                    // This will also trigger the initial visualization
                     if (startDate) {
+                        console.log("Processing initial data...");
                         processData(csvData);
+                    } else {
+                         console.error("Cannot process initial data: startDate is not set.");
                     }
                 })
                 .catch((error) => {
@@ -1143,7 +1282,8 @@
                 const lng = parseFloat(row.long);
 
                 // --- Filter by Radius AND Keyword ---
-                if (isNaN(lat) || isNaN(lng) || !isWithinRadius(lat, lng)) return; // Skip if outside radius
+                // Use deck.gl compatible coordinate order (lng, lat) for filtering
+                if (isNaN(lat) || isNaN(lng) || !isWithinRadius(lng, lat)) return; // Skip if outside radius
                 if (keyword && !(row.description || '').toLowerCase().includes(keyword)) return; // Skip if keyword doesn't match
 
                 // --- Process Valid Report ---
@@ -1178,8 +1318,9 @@
             });
 
             // Sort the geographically/keyword filtered reports (allReports) by date
-            // This is useful for potential future optimizations or chronological processing
             allReports.sort((a, b) => a.date - b.date);
+             console.log(`Processed ${allReports.length} reports within radius/filter.`);
+             console.log(`Grouped into ${reportsByLocation.size} unique locations.`);
 
             // --- Trigger Visualization ---
             // Visualize based on the current date held by the animation controller
@@ -1187,11 +1328,14 @@
                 visualizeDataAtDate(animationController.currentDate);
             } else if (startDate) {
                 // Fallback if controller isn't ready, use the global start date
+                console.log("Visualizing data for initial start date.");
                 visualizeDataAtDate(startDate);
+            } else {
+                 console.error("Cannot visualize: No valid date available.");
             }
 
-            // Ensure map resizes correctly after potential layout shifts
-            setTimeout(() => { if (map) map.invalidateSize(); }, 100);
+            // Ensure map resizes correctly after potential layout shifts (less critical with deck.gl)
+            // setTimeout(() => { if (map) map.resize(); }, 100);
             console.timeEnd("processData (filtering/grouping)");
         }
 
@@ -1199,177 +1343,222 @@
         // --- Visualization ---
 
         /**
-         * Visualizes data (markers, heatmap, stats, chart) for a specific date.
-         * Uses the pre-filtered `allReports` and `reportsByLocation` maps.
+         * Visualizes data (deck.gl layers) for a specific date.
+         * Creates/updates ScatterplotLayer, HeatmapLayer, and PathLayer (for radius).
          * @param {moment} targetDate - The date for which to visualize data.
          */
         function visualizeDataAtDate(targetDate) {
-            if (!map || !targetDate || !targetDate.isValid()) return;
+            // Check if essential components are ready
+             if (!map || !deck || !targetDate || !targetDate.isValid()) {
+                console.warn("visualizeDataAtDate called before map/deck/date ready.");
+                return;
+            }
+             if (typeof deck.ScatterplotLayer === 'undefined' || typeof deck.HeatmapLayer === 'undefined' || typeof deck.PathLayer === 'undefined') {
+                 console.warn("deck.gl layers not ready yet.");
+                 return;
+             }
             console.time("visualizeDataAtDate");
 
-            // Store the key of the currently open popup before clearing layers
-            const previouslyOpenKey = openPopupLocationKey;
-            let markerForReopen = null; // Store the marker instance if we need to reopen its popup
-
-            markersLayer.clearLayers(); // Clear existing markers
-
-            let heatData = [];
+            let heatDataPoints = []; // Data for HeatmapLayer [{coordinates: [lng, lat], weight: w}]
+            let scatterplotData = []; // Data for ScatterplotLayer [{position: [lng, lat], size: s, color: [r,g,b,a], options: {...}}]
             let activeLocationCount = 0;
             let recentReportCount = 0;
             let totalReportCount = 0;
             const showMarkers = document.getElementById("toggleMarkers").checked;
             const showHeatmap = document.getElementById("toggleHeatmap").checked;
-            let openPopupMarkerFound = false; // Flag to track if the previously open marker is redrawn
+            let featureToReopen = null; // Store feature whose popup should reopen
 
-            // Filter the already geographically-filtered `allReports` list by date for heatmap and stats
+            // Filter the already geographically-filtered `allReports` list by date
             const reportsToDate = allReports.filter(report => report.date <= targetDate);
-            totalReportCount = reportsToDate.length; // Total count *within the current view* up to targetDate
+            totalReportCount = reportsToDate.length;
 
-            // --- Process for Heatmap and Stats ---
-            reportsToDate.forEach(report => {
-                // Calculate recency based on the targetDate of the slider
-                if (targetDate.diff(report.date, "days") <= 30) recentReportCount++;
-
-                // Prepare heatmap data if enabled
-                if (showHeatmap) {
+            // --- Process for Heatmap ---
+            if (showHeatmap) {
+                reportsToDate.forEach(report => {
                     const lat = parseFloat(report.data.lat);
                     const lng = parseFloat(report.data.long);
                     if (!isNaN(lat) && !isNaN(lng)) {
-                        // Calculate weight based on how recent the report is relative to targetDate
-                        const daysDiff = targetDate.diff(report.date, "days", true); // Use true for fractional days
-                        const weight = Math.max(0.1, 1 - daysDiff / 365); // Weight diminishes over a year
-                        heatData.push([lat, lng, weight]);
-                    }
-                }
-            });
-
-            // --- Process Grouped Locations for Markers ---
-            if (showMarkers) {
-                reportsByLocation.forEach((locationData, locationKey) => {
-                    // Filter reports *at this specific location* by the targetDate
-                    const relevantReportsForMarker = locationData.reports.filter(reportRef => reportRef.date <= targetDate);
-
-                    if (relevantReportsForMarker.length > 0) {
-                        activeLocationCount++; // Count locations active *within the view* up to targetDate
-
-                        // Determine marker appearance based on reports up to targetDate
-                        const newestDate = moment.max(relevantReportsForMarker.map(r => r.date));
-                        const monthsSinceNewest = newestDate ? targetDate.diff(newestDate, "months", true) : 13; // Default to > 12 if no date
-                        const opacityFactor = Math.max(0.2, 1 - monthsSinceNewest / 12); // Opacity fades over 12 months
-                        const radius = Math.min(60, Math.max(5, 5 + relevantReportsForMarker.length * 1.5)); // Size based on count
-
-                        // Create the circle marker
-                        const circle = L.circleMarker([locationData.lat, locationData.lng], {
-                            radius: radius,
-                            fillColor: "#e74c3c", // Red fill
-                            color: "#c0392b", // Darker red border
-                            weight: 1,
-                            opacity: opacityFactor,
-                            fillOpacity: opacityFactor,
-                            locationKey: locationKey, // Store key in options for popup management
-                            pane: 'markerPane' // Ensure markers are drawn on the correct pane
-                        });
-
-                        // Generate popup content based on reports relevant *up to this date*
-                        const detailContent = generatePopupContent(locationData, relevantReportsForMarker, targetDate);
-
-                        // Popup Options (Persistent)
-                        const persistentPopupOptions = {
-                            autoPan: true, closeButton: true, autoClose: true,
-                            closeOnClick: false, // Keep open on map click
-                            closeOnMove: false   // Keep open on map move (important for animation)
-                        };
-
-                        // Check if this marker should have its popup reopened
-                        if (locationKey === previouslyOpenKey) {
-                            openPopupMarkerFound = true;
-                            markerForReopen = circle;
-                            circle.bindPopup(detailContent, persistentPopupOptions); // Bind latest content
-                        } else {
-                            // Bind content initially but don't open automatically
-                            circle.bindPopup(detailContent, persistentPopupOptions);
-                        }
-
-                        // Click Handler: Update state, re-bind fresh content, open popup
-                        circle.on("click", function (e) {
-                            L.DomEvent.stopPropagation(e); // Prevent map click
-                            openPopupLocationKey = this.options.locationKey; // Update state *before* opening
-
-                            // Re-generate content just before opening to ensure it's fresh
-                            const freshDetailContent = generatePopupContent(locationData, relevantReportsForMarker, targetDate);
-                            this.unbindPopup(); // Unbind previous content/options
-                            this.bindPopup(freshDetailContent, persistentPopupOptions).openPopup(); // Bind fresh content and open
-                        });
-
-                        // Popup Open Handler: Track the key when *any* popup opens
-                        circle.on('popupopen', function(e) {
-                            openPopupLocationKey = this.options.locationKey;
-                        });
-
-                        markersLayer.addLayer(circle);
+                        const daysDiff = targetDate.diff(report.date, "days", true);
+                        const weight = Math.max(0.1, 1 - daysDiff / 365); // Simple weight based on recency
+                        heatDataPoints.push({ coordinates: [lng, lat], weight: weight * 10 }); // Multiply weight for visibility
                     }
                 });
             }
 
-            // --- Reopen Popup if Necessary ---
-            if (markerForReopen) {
-                // Use setTimeout to ensure the marker is fully added to the layer before opening popup
-                setTimeout(() => {
-                    if (markersLayer.hasLayer(markerForReopen)) {
-                        markerForReopen.openPopup();
-                    } else {
-                        // Marker might have disappeared due to date change before timeout
-                        openPopupLocationKey = null;
+            // --- Process Grouped Locations for Scatterplot ---
+            if (showMarkers) {
+                reportsByLocation.forEach((locationData, locationKey) => {
+                    const relevantReportsForMarker = locationData.reports.filter(reportRef => reportRef.date <= targetDate);
+                    if (relevantReportsForMarker.length > 0) {
+                        activeLocationCount++;
+                        if (typeof locationData.lat !== 'number' || isNaN(locationData.lat) ||
+                            typeof locationData.lng !== 'number' || isNaN(locationData.lng)) {
+                            console.warn("Skipping point due to invalid coordinates:", locationData);
+                            return;
+                        }
+                        const newestDate = moment.max(relevantReportsForMarker.map(r => r.date));
+                        const monthsSinceNewest = newestDate ? targetDate.diff(newestDate, "months", true) : 13;
+                        const opacityFactor = Math.max(0.2, 1 - monthsSinceNewest / 12);
+                        const pointSize = Math.min(60, Math.max(5, 5 + relevantReportsForMarker.length * 1.5));
+
+                        // Color as [R, G, B, A] with values 0-255
+                        const pointColor = [231, 76, 60, Math.round(opacityFactor * 255)];
+
+                        const point = {
+                            position: [locationData.lng, locationData.lat],
+                            size: pointSize,
+                            color: pointColor,
+                            // Store necessary data for popups directly on the point object
+                            options: {
+                                locationKey: locationKey,
+                                address: locationData.address,
+                                lat: locationData.lat,
+                                lng: locationData.lng,
+                                reports: relevantReportsForMarker
+                            }
+                        };
+                        scatterplotData.push(point);
+
+                        // Check if this point's popup should be reopened
+                        if (locationKey === openPopupInfo?.object?.options?.locationKey) {
+                             featureToReopen = point; // Store the point data itself
+                        }
                     }
-                }, 0);
-            } else if (previouslyOpenKey && !openPopupMarkerFound) {
-                // If the previously open marker was NOT found/redrawn in this frame, clear the state
-                openPopupLocationKey = null;
+                });
             }
 
-            // --- Update Heatmap Layer ---
+            // --- Define deck.gl Layers ---
+            const layers = [];
+
+            // Scatterplot Layer for Markers
+            if (showMarkers) {
+                layers.push(new deck.ScatterplotLayer({
+                    id: 'scatterplot-layer',
+                    data: scatterplotData,
+                    pickable: true, // Enable clicking/hovering
+                    opacity: 1.0, // Opacity is handled by color alpha
+                    stroked: true, // Add a border
+                    filled: true,
+                    radiusScale: 1, // Use pixel size directly
+                    radiusMinPixels: 2,
+                    radiusMaxPixels: 30,
+                    lineWidthMinPixels: 1,
+                    getPosition: d => d.position,
+                    getRadius: d => d.size,
+                    getFillColor: d => d.color,
+                    getLineColor: [192, 57, 43, 150] // Darker red border, slightly transparent [R,G,B,A]
+                }));
+            }
+
+            // Heatmap Layer
             if (showHeatmap) {
-                heatLayer.setLatLngs(heatData);
+                layers.push(new deck.HeatmapLayer({
+                    id: 'heatmap-layer',
+                    data: heatDataPoints, // Use the prepared heatmap data
+                    getPosition: d => d.coordinates,
+                    getWeight: d => d.weight,
+                    radiusPixels: 40, // Adjust radius
+                    intensity: 1, // Adjust intensity
+                    threshold: 0.05, // Adjust threshold
+                    colorRange: [ // Standard heatmap color range (blue to red)
+                        [1, 152, 189],
+                        [73, 227, 206],
+                        [216, 254, 181],
+                        [254, 237, 177],
+                        [254, 173, 84],
+                        [209, 55, 78]
+                    ]
+                }));
             }
-            // Note: Heatmap layer is removed/added in handleViewToggle, no need to clear data here.
 
-            // --- Update Statistics Display --- (reflects current view + date)
+             // Path Layer for Radius Circle
+             if (RADIUS_METERS > 0) { // Only draw if radius is not MAX
+                const circlePoints = createCirclePoints(CENTER_LNG, CENTER_LAT, RADIUS_METERS);
+                layers.push(new deck.PathLayer({
+                    id: 'radius-circle-layer',
+                    data: [{ path: circlePoints }],
+                    pickable: false,
+                    widthScale: 1,
+                    widthMinPixels: 1.5,
+                    getPath: d => d.path,
+                    getColor: [51, 136, 255, 200], // Blue color [R,G,B,A]
+                    getWidth: 1.5
+                }));
+            }
+
+
+            // Update deck.gl layers
+            deck.setProps({ layers: layers });
+
+            // --- Reopen Popup if Necessary ---
+             if (featureToReopen) {
+                 console.log("Attempting to reopen popup for key:", openPopupInfo?.object?.options?.locationKey);
+                 // Use setTimeout to allow deck.gl to render the updated layer
+                 setTimeout(() => {
+                     // Find the screen coordinates of the point to reopen
+                     const screenCoords = deck.getViewports()[0]?.project(featureToReopen.position);
+                     if (screenCoords) {
+                         console.log("Executing delayed popup reopen at", screenCoords);
+                         // Manually trigger the tooltip/popup display logic
+                         openPopupInfo = { // Reconstruct minimal info needed
+                             object: featureToReopen,
+                             x: screenCoords[0],
+                             y: screenCoords[1]
+                         };
+                         handleDeckClick(openPopupInfo, null); // Pass null for event
+                     } else {
+                         console.log("Could not project coordinates for popup reopen.");
+                         openPopupInfo = null; // Clear if projection failed
+                     }
+                 }, 150); // Slightly longer delay for deck.gl rendering
+             } else if (openPopupInfo && !featureToReopen) {
+                 // If the point for the open popup is no longer visible, close the popup
+                 console.log("Point for open popup no longer visible. Closing tooltip.");
+                 openPopupInfo = null;
+                 const tooltip = document.getElementById('tooltip');
+                 tooltip.style.display = 'none';
+                 tooltip.style.pointerEvents = 'none';
+             }
+
+
+            // --- Update Statistics Display ---
             document.getElementById("totalReports").textContent = totalReportCount;
             document.getElementById("activeLocations").textContent = activeLocationCount;
             document.getElementById("recentReports").textContent = recentReportCount;
 
-            // --- Update Yearly Chart --- (uses reportsToDate which is filtered by view + date)
+            // --- Update Yearly Chart ---
             updateYearlyChart(reportsToDate, targetDate);
 
             console.timeEnd("visualizeDataAtDate");
         }
 
         /**
-         * Adds the map legend control.
+         * Adds the map legend control (updated for Glify points).
          */
         function addLegend() {
-            if (map.legend) return; // Already exists
+            const legendContainer = document.getElementById('legend-container');
+            if (!legendContainer || legendContainer.querySelector('.legend')) return; // Already exists
 
-            map.legend = L.control({ position: "bottomright" }); // Store legend instance on map object
-            map.legend.onAdd = function (map) {
-                const div = L.DomUtil.create("div", "legend");
-                // Simplified legend for circle markers (size and opacity)
-                div.innerHTML = `
-                    <h4>Legend</h4>
-                    <div><i style="background:#e74c3c; width:8px; height:8px;"></i> Single Report</div>
-                    <div><i style="background:#e74c3c; width:18px; height:18px;"></i> Multiple Reports</div>
-                    <div><i style="background:#e74c3c; width:28px; height:28px;"></i> Many Reports</div>
-                    <hr style="margin: 5px 0; border-top: 1px solid #ccc;">
-                    <div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:1.0;"></i> Recent</div>
-                    <div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.6;"></i> ~6 Months Old</div>
-                    <div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.2;"></i> 12+ Months Old</div>`;
-                return div;
-            };
-            map.legend.addTo(map);
+            const legendDiv = document.createElement('div');
+            legendDiv.className = 'legend'; // Apply existing CSS class
+             legendDiv.innerHTML = `
+                <h4>Legend</h4>
+                <div><i style="background:rgba(231, 76, 60, 0.7); width:8px; height:8px;"></i><span class="legend-item-text">Single Report</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.7); width:18px; height:18px;"></i><span class="legend-item-text">Multiple Reports</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.7); width:28px; height:28px;"></i><span class="legend-item-text">Many Reports</span></div>
+                <hr style="margin: 5px 0; border-top: 1px solid #ccc;">
+                <div><i style="background:rgba(231, 76, 60, 1.0); width: 18px; height: 18px;"></i><span class="legend-item-text">Recent (More Opaque)</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.6); width: 18px; height: 18px;"></i><span class="legend-item-text">~6 Months Old</span></div>
+                <div><i style="background:rgba(231, 76, 60, 0.2); width: 18px; height: 18px;"></i><span class="legend-item-text">12+ Months Old (Faded)</span></div>
+                <hr style="margin: 5px 0; border-top: 1px solid #ccc;">
+                <div><i style="background: linear-gradient(to right, rgb(1, 152, 189), rgb(73, 227, 206), rgb(216, 254, 181), rgb(254, 237, 177), rgb(254, 173, 84), rgb(209, 55, 78)); width: 100%; height: 10px; display: block; border-radius: 5px;"></i><span class="legend-item-text" style="margin-left:0; display:block; text-align: center;">Heatmap Intensity</span></div>
+                `;
+            legendContainer.appendChild(legendDiv);
         }
 
         /**
          * Generates the HTML content for a marker's popup.
+         * (No changes needed here, reused for Glify popups)
          * @param {object} locationData - The data for the location (lat, lng, address).
          * @param {Array} filteredReportsForLocation - Reports at this location up to the target date.
          * @param {moment} targetDate - The current date being visualized.
@@ -1387,7 +1576,7 @@
             // Build the detailed report list HTML
             let listHTML = filteredReportsForLocation.map(report => {
                 let itemHTML = `<div class="report-item">
-                    <div><strong>${report.date.format("MMM D, YYYY h:mm A")}</strong></div>`; // Format date/time
+                    <div><strong>${report.date.format("MMM D, YYYY h:mm A")}</strong></div>`; // Corrected format
 
                 // Sanitize description before adding
                 if (report.data.description) {
@@ -1401,7 +1590,7 @@
                 if (report.data.media_url && report.data.media_url.trim() !== "") {
                     const mediaUrl = report.data.media_url;
                     const description = report.data.description || "";
-                    const titleText = `${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`;
+                    const titleText = `${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`; // Corrected format
 
                     // Use data attributes instead of inline onclick
                     itemHTML += `<div style="margin-top: 5px;">
@@ -1432,6 +1621,7 @@
 
         /**
          * Initializes the Chart.js bar chart for yearly reports.
+         * (No changes needed here)
          * @returns {Chart|null} The Chart.js instance or null on error.
          */
         function initializeYearlyChart() {
@@ -1505,6 +1695,7 @@
 
         /**
          * Updates the yearly reports chart with data filtered up to the target date.
+         * (No changes needed here)
          * @param {Array} reportsToDate - Array of report objects filtered by view and date.
          * @param {moment} targetDate - The current date being visualized.
          */
@@ -1568,9 +1759,6 @@
             yearlyReportsChart.options.plugins.tooltip.backgroundColor = isDarkMode ? '#222' : '#fff';
             yearlyReportsChart.options.plugins.tooltip.titleColor = isDarkMode ? '#eee' : '#333';
             yearlyReportsChart.options.plugins.tooltip.bodyColor = isDarkMode ? '#ddd' : '#555';
-            // Optional: Update bar colors if they need to change dynamically
-            // yearlyReportsChart.data.datasets[0].backgroundColor = isDarkMode ? 'rgba(231, 76, 60, 0.6)' : 'rgba(231, 76, 60, 0.7)';
-            // yearlyReportsChart.data.datasets[0].borderColor = isDarkMode ? 'rgba(192, 57, 43, 0.8)' : 'rgba(192, 57, 43, 1)';
 
             // Update the chart, disabling animation if currently playing
             yearlyReportsChart.update(isAnimating ? 'none' : 'default');
@@ -1580,7 +1768,7 @@
         // --- Geocoding ---
 
         /**
-         * Geocodes an address using Nominatim API with fallback to local lookup.
+         * Geocodes an address using Mapbox Geocoding API.
          * @param {string} address - The address string to geocode.
          */
         function geocodeAddress(address) {
@@ -1588,32 +1776,26 @@
             statusElement.textContent = "Searching...";
             statusElement.style.color = "#666";
 
-            let searchQuery = address;
-            // Append Boston, MA if not present for better Nominatim results
-            if (!/boston/i.test(searchQuery) && !/\bma\b/i.test(searchQuery)) {
-                searchQuery += ", Boston, MA";
-            }
+            // Use Mapbox Geocoding API
+            const mapboxGeocodingUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&proximity=${CENTER_LNG},${CENTER_LAT}&bbox=-71.2,42.2,-70.9,42.4&limit=1`; // Added proximity and bbox for Boston focus
 
-            // Use Nominatim API for geocoding
-            // Added viewbox/bounded for Boston focus and User-Agent header
-            const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=jsonv2&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1`;
-
-            fetch(nominatimUrl, { headers: { "User-Agent": "Boston311Viz/1.0 (github.com/jparkerogrady/boston-needle-viz)" } })
+            fetch(mapboxGeocodingUrl)
                 .then(response => {
                     if (!response.ok) throw new Error(`Network error: ${response.status}`);
                     return response.json();
                 })
                 .then(data => {
-                    if (data && data.length > 0) {
-                        const result = data[0];
-                        updateMapLocation(parseFloat(result.lat), parseFloat(result.lon), result.display_name, statusElement);
+                    if (data && data.features && data.features.length > 0) {
+                        const result = data.features[0];
+                        const [lng, lat] = result.center; // Get coordinates
+                        updateMapLocation(lat, lng, result.place_name, statusElement);
                     } else {
-                        // If Nominatim fails or returns no results, try local lookup
+                        // If Mapbox fails, try local lookup as a fallback
                         checkLocalDatabase(address, statusElement);
                     }
                 })
                 .catch(error => {
-                    console.error("Nominatim Geocoding error:", error);
+                    console.error("Mapbox Geocoding error:", error);
                     statusElement.textContent = "Geocoding failed. Trying local...";
                     statusElement.style.color = "orange";
                     checkLocalDatabase(address, statusElement); // Fallback to local lookup
@@ -1622,6 +1804,7 @@
 
         /**
          * Checks a simple local database for common Boston locations.
+         * (No changes needed here)
          * @param {string} address - The address string to check.
          * @param {HTMLElement} statusElement - The element to display status messages.
          */
@@ -1669,22 +1852,28 @@
             statusElement.textContent = `Found: ${shortDisplayName}`;
             statusElement.style.color = "green";
 
-            map.setView([lat, lng], 16); // Center map on the found location with appropriate zoom
-
-            // Update radius circle and center marker position (already handled by moveend listener, but good for immediate feedback)
-            radiusCircle.setLatLng([lat, lng]);
-            centerMarker.setLatLng([lat, lng]).setPopupContent(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+            // Use Mapbox flyTo for smooth transition
+            if (map) {
+                map.flyTo({
+                    center: [lng, lat],
+                    zoom: 16, // Zoom in a bit closer on search
+                    essential: true // Mark as essential animation
+                });
+            }
 
             // Re-process data for the new location (filters by new radius/center)
-            if (csvData.length > 0) {
-                processData(csvData);
-            }
+            // handleMapMoveEnd will be triggered automatically after flyTo finishes,
+            // which will call processData. No need to call it directly here.
+            // if (csvData.length > 0) {
+            //     processData(csvData);
+            // }
         }
 
         // --- Image Popup ---
 
         /**
          * Displays a full-size image in an overlay popup.
+         * (No changes needed here)
          * @param {string} mediaUrl - The URL of the image to display.
          * @param {string} description - Optional description/caption for the image.
          * @param {string} titleText - Optional title for the popup.
@@ -1800,10 +1989,11 @@
 
 
         // --- Animation Controller Class ---
+        // (No changes needed in the class itself)
         class AnimationController {
             /**
              * Controls the time-based animation of the visualization.
-             * @param {L.Map} map - The Leaflet map instance.
+             * @param {mapboxgl.Map} map - The Mapbox GL JS map instance (or null).
              * @param {object} options - Configuration options.
              * @param {number} [options.updateInterval=50] - Interval (ms) for map visualization updates.
              * @param {number} [options.dayTickInterval=16] - Interval (ms) for advancing the date (~60fps).
@@ -1813,8 +2003,8 @@
              * @param {Function} [options.onComplete] - Callback function when animation reaches the end.
              * @param {boolean} [options.debug=false] - Enable console logging for debugging.
              */
-            constructor(map, options = {}) {
-                this.map = map;
+            constructor(map, options = {}) { // Map parameter is optional now
+                this.map = map; // Keep reference if needed, but core logic doesn't use it
                 this.updateInterval = options.updateInterval || 50;
                 this.dayTickInterval = options.dayTickInterval || 16; // Tied to requestAnimationFrame
                 this.isPlaying = false;
@@ -1851,7 +2041,8 @@
                 if (this.debug) console.log("AnimationController Dates set:", this.startDate.format(), this.endDate.format(), this.currentDate.format());
 
                 this.updateDateDisplay(); // Update UI immediately
-                this.visualize();         // Visualize initial state
+                // Don't visualize here; let the caller (loadData or processData) trigger the first visualization
+                // this.visualize();
                 return this;
             }
 
