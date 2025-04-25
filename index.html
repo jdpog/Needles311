@@ -1221,7 +1221,7 @@
 						// Escape values properly for the onclick handler
 						const safeMediaUrl = JSON.stringify(report.data.media_url);
 						const safeDescForPopup = JSON.stringify(report.data.description || "");
-						const titleText = JSON.stringify(`${locationData.address} <br> ${report.date.format("MMM D, YYYY h:mm A")}`);
+						const titleText = JSON.stringify(`${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`);
 
 						itemHTML += `<div style="margin-top: 5px;">
 						   <img src="${report.data.media_url}" alt="Report media" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer; border-radius: 3px;"
