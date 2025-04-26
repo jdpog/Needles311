@@ -7,19 +7,15 @@ import os
 from datetime import datetime, timedelta
 
 # API parameters
-SERVICE_CODE = "Mayor's 24 Hour Hotline:Needle Program:Needle Pickup"
-API_ENDPOINT = "https://311.boston.gov/open311/v2/requests.json"
-PER_PAGE = 100          # Maximum allowed per request
-SLEEP_SECONDS = 8       # Pause between API calls (fewer than 10 queries per minute)
+SERVICE_CODE   = "Mayor's 24 Hour Hotline:Needle Program:Needle Pickup"
+API_ENDPOINT   = "https://311.boston.gov/open311/v2/requests.json"
+PER_PAGE       = 100          # Maximum allowed per request
+SLEEP_SECONDS  = 8            # Pause between API calls (<10/minute)
 
-# User-Agent header (customize as needed)
+# User-Agent header
 HEADERS = {"User-Agent": "BostonNeedleReportsDownloader/1.0"}
 
 def fetch_reports_for_date_range(start_date_param, end_date_param, page=1):
-    """
-    Fetch a single page of reports for the given interval using start_date and end_date.
-    Both parameters should be ISO8601 strings.
-    """
     params = {
         "service_code": SERVICE_CODE,
         "per_page": PER_PAGE,
@@ -27,86 +23,80 @@ def fetch_reports_for_date_range(start_date_param, end_date_param, page=1):
         "start_date": start_date_param,
         "end_date": end_date_param
     }
-    print(f"Fetching page {page} for interval {start_date_param} to {end_date_param}")
-    try:
-        response = requests.get(API_ENDPOINT, params=params, headers=HEADERS)
-    except Exception as e:
-        print(f"Error fetching page {page}: {e}")
+    print(f"Fetching page {page} for interval {start_date_param} → {end_date_param}")
+    resp = requests.get(API_ENDPOINT, params=params, headers=HEADERS)
+    if resp.status_code != 200:
+        print(f"Error: status {resp.status_code} on page {page}")
+        print(resp.text)
         sys.exit(1)
-
-    if response.status_code != 200:
-        print(f"Error: Received status code {response.status_code} on page {page}")
-        print(response.text)
-        sys.exit(1)
-
-    try:
-        data = response.json()
-    except Exception as e:
-        print(f"Error parsing JSON for page {page}: {e}")
-        sys.exit(1)
-
-    # The API may return the records under different keys.
-    if "result" in data:
+    data = resp.json()
+    # API may wrap in {"result": {...}}
+    if isinstance(data, dict) and "result" in data:
         records = data["result"].get("requests") or data["result"].get("records") or []
     else:
         records = data if isinstance(data, list) else []
     return records
 
 def fetch_reports_for_range(start_date_param, end_date_param):
-    """
-    For a given time interval (start_date to end_date), paginate through results.
-    """
-    interval_reports = []
+    all = []
     page = 1
     while True:
-        records = fetch_reports_for_date_range(start_date_param, end_date_param, page=page)
-        print(f"Fetched {len(records)} records on page {page}")
-        if not records:
+        batch = fetch_reports_for_date_range(start_date_param, end_date_param, page=page)
+        print(f"  → fetched {len(batch)} records on page {page}")
+        if not batch:
             break
-        interval_reports.extend(records)
-        if len(records) < PER_PAGE:
-            # No further pages in this interval.
+        all.extend(batch)
+        if len(batch) < PER_PAGE:
             break
         page += 1
         time.sleep(SLEEP_SECONDS)
-    return interval_reports
+    return all
 
 def main():
-    # Define the overall date range: January 1, 2015 until now.
     overall_start = datetime(2015, 1, 1)
-    overall_end = datetime.now()
-    print(f"Fetching reports from {overall_start.isoformat()} to {overall_end.isoformat()}")
+    overall_end   = datetime.now()
+    print(f"Fetching reports {overall_start.isoformat()} → {overall_end.isoformat()}")
 
-    # Use a 90-day interval (you can adjust this if needed).
     interval_delta = timedelta(days=90)
-    current_start = overall_start
-    all_reports = []
+    current_start  = overall_start
+    raw_reports    = []
 
     while current_start < overall_end:
         current_end = min(current_start + interval_delta, overall_end)
-        # Create ISO8601 strings for start_date and end_date.
-        # Append "Z" to indicate UTC time.
-        start_date_str = current_start.isoformat() + "Z"
-        end_date_str = current_end.isoformat() + "Z"
-        print(f"\nProcessing interval: {start_date_str} to {end_date_str}")
-        interval_reports = fetch_reports_for_range(start_date_str, end_date_str)
-        print(f"Retrieved {len(interval_reports)} records for this interval")
-        all_reports.extend(interval_reports)
+        start_str   = current_start.isoformat() + "Z"
+        end_str     = current_end.isoformat()   + "Z"
+        print(f"\nInterval {start_str} → {end_str}")
+        batch = fetch_reports_for_range(start_str, end_str)
+        raw_reports.extend(batch)
+        print(f" Interval total: {len(batch)} records")
         current_start = current_end
-        time.sleep(SLEEP_SECONDS)  # Additional sleep between intervals.
+        time.sleep(SLEEP_SECONDS)
 
-    print(f"\nTotal reports fetched: {len(all_reports)}")
+    print(f"\nTotal raw reports fetched: {len(raw_reports)}")
 
-    # Ensure the data folder exists and write the combined results.
+    # --- filter down to only the six fields we want ---
+    filtered = []
+    for r in raw_reports:
+        filtered.append({
+            "description":         r.get("description", ""),
+            "requested_datetime":  r.get("requested_datetime", ""),
+            "address":             r.get("address", ""),
+            "lat":                 r.get("lat", ""),
+            "long":                r.get("long", ""),
+            "media_url":           r.get("media_url", "")
+        })
+
+    # ensure output directory
     output_dir = "data"
     os.makedirs(output_dir, exist_ok=True)
-    output_filename = os.path.join(output_dir, "reports.json")
+    output_file = os.path.join(output_dir, "reports.json")
+
     try:
-        with open(output_filename, "w") as outfile:
-            json.dump(all_reports, outfile, indent=2)
-        print(f"Data successfully written to {output_filename}")
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(filtered, f, indent=2, ensure_ascii=False)
+        print(f"Filtered data written ({len(filtered)} records) to {output_file}")
     except Exception as e:
-        print(f"Error writing data to file {output_filename}: {e}")
+        print(f"Error writing to {output_file}: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

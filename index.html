@@ -111,7 +111,7 @@
 				grid-area: info;
 				background-color: #f0f8ff;
 				padding: 15px;
-				padding-bottom: 60px; /* Space for content */
+				/* padding-bottom: 60px;  Space for content */
 				display: flex;
 				flex-direction: column;
 				overflow-y: auto; /* Allow scrolling within the panel */
@@ -160,6 +160,7 @@
 				float: left;
 				margin-right: 8px;
 				opacity: 0.7;
+				border-radius: 50%;
 			}
 			.info { /* General info box styling (if used) */
 				padding: 10px;
@@ -581,9 +582,12 @@
 					<div class="chart-container">
 						<canvas id="yearlyChart"></canvas>
 					</div>
+					<div style="margin-top: auto;">
+						<p style="font-size: 0.9rem; color: #555; text-align: center; margin-bottom: 5px;">Source: <a href="https://311.boston.gov/" target="_blank">Boston 311</a> Needle Cleanup reports.</p>
 
-					<div id="last-update" style="margin-top: auto; padding-top: 10px; font-size: 0.8rem; color: #555; text-align: center;">
-						Loading update time...
+						<div id="last-update" style="padding-top: 0px; font-size: 0.8rem; color: #555; text-align: center;">
+							Loading update time...
+						</div>
 					</div>
 				</div>
 			</div>
@@ -726,6 +730,30 @@
                 map.on('popupclose', function(e) {
                     openPopupLocationKey = null;
                 });
+
+                // *** FIX: Add listener for popupopen to attach image click handlers ***
+                map.on('popupopen', function (e) {
+                    if (e.popup && e.popup.getElement()) { // Check if popup and its element exist
+                        // Find images within the opened popup that have the specific class
+                        const images = e.popup.getElement().querySelectorAll('.popup-report-image');
+                        images.forEach(img => {
+                            // Prevent adding the listener multiple times if the popup re-opens
+                            if (!img.dataset.listenerAttached) {
+                                 img.addEventListener('click', function() {
+                                    // Read data attributes from the clicked image
+                                    const url = this.dataset.mediaUrl;
+                                    const desc = this.dataset.description;
+                                    const title = this.dataset.title;
+                                    // Call showFullSizeImage with the retrieved data
+                                    showFullSizeImage(url, desc, title);
+                                });
+                                // Mark that the listener has been attached to this image
+                                img.dataset.listenerAttached = 'true';
+                            }
+                        });
+                    }
+                });
+                // *** END FIX ***
 
                 // Add Legend initially if markers are shown
                 if (document.getElementById("toggleMarkers").checked) {
@@ -1027,25 +1055,13 @@
                     // Simplified legend for circle markers
                     div.innerHTML = `
                         <h4>Legend</h4>
-                        <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:8px; height:8px; margin-right: 8px; opacity: 0.7;"></i> Single Report
-                        </div>
-                        <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:18px; height:18px; margin-right: 8px; opacity: 0.7;"></i> Multiple Reports
-                        </div>
-                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:28px; height:28px; margin-right: 8px; opacity: 0.7;"></i> Many Reports
-                        </div>
-                        <hr style="margin: 5px 0;">
-                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; width: 18px; height: 18px; margin-right: 8px; opacity:1.0;"></i> Recent
-                         </div>
-                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; width: 18px; height: 18px; margin-right: 8px; opacity:0.6;"></i> ~6 Months Old
-                         </div>
-                         <div style="display: flex; align-items: center;">
-                            <i style="background:#e74c3c; width: 18px; height: 18px; margin-right: 8px; opacity:0.2;"></i> 12+ Months Old
-                         </div>`;
+							<div><i style="background:#e74c3c; width:8px; height:8px;"></i> Single Report</div>
+							<div><i style="background:#e74c3c; width:18px; height:18px;"></i> Multiple Reports</div>
+							<div><i style="background:#e74c3c; width:28px; height:28px;"></i> Many Reports</div>
+							<hr style="margin: 5px 0; border-top: 1px solid #ccc;">
+							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:1.0;"></i> Recent</div>
+							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.6;"></i> ~6 Months Old</div>
+							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.2;"></i> 12+ Months Old</div>`;
                     return div;
                 };
                 map.legend.addTo(map);
@@ -1146,7 +1162,9 @@
                                 // Unbind, re-bind detailed content, and open
                                 // (Re-binding ensures it's the top popup if already open and content might have changed)
                                 this.unbindPopup();
-                                this.bindPopup(detailContent, persistentPopupOptions);
+                                // Re-generate content just before opening to ensure it's fresh
+                                const freshDetailContent = updateDetailedInfoPanel(locationData, relevantReportsForMarker, targetDate);
+                                this.bindPopup(freshDetailContent, persistentPopupOptions);
                                 this.openPopup();
                             });
 
@@ -1180,8 +1198,11 @@
 
 
                 // Update Heatmap Layer
-                if (showHeatmap) { heatLayer.setLatLngs(heatData); }
-                else { heatLayer.setLatLngs([]); } // Clear heatmap if toggled off
+                if (showHeatmap) {
+                    heatLayer.setLatLngs(heatData);
+                }
+                // *** FIX: Removed the 'else' block that called setLatLngs([]) ***
+                // No need to clear heatmap data here; it's removed in handleViewToggle
 
                 // Update Statistics Display (reflects current view + date)
                 document.getElementById("totalReports").textContent = totalReportCount;
@@ -1214,17 +1235,21 @@
 						itemHTML += `<div style="font-size: 0.9em; margin-top: 3px;">${safeDescription}</div>`;
 					}
 					if (report.data.media_url && report.data.media_url.trim() !== "") {
-						// Escape values properly for the onclick handler
-						const safeMediaUrl = JSON.stringify(report.data.media_url);
-						const safeDescForPopup = JSON.stringify(report.data.description || "");
-						const titleText = JSON.stringify(`${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`);
+                        // *** FIX: Use data attributes instead of inline onclick ***
+                        const mediaUrl = report.data.media_url || ""; // Use raw url
+                        const description = report.data.description || ""; // Use raw description
+                        const titleText = `${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`; // Use raw title
 
-						itemHTML += `<div style="margin-top: 5px;">
-						   <img src="${report.data.media_url}" alt="Report media" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer; border-radius: 3px;"
-							onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-							onclick='showFullSizeImage(${safeMediaUrl}, ${safeDescForPopup}, ${titleText})'>
-						   <span style="display: none; font-size: 0.8em; color: #888;">(Image not available)</span>
-						 </div>`;
+                        itemHTML += `<div style="margin-top: 5px;">
+                           <img src="${mediaUrl}" alt="Report media" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer; border-radius: 3px;"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                            data-media-url="${mediaUrl.replace(/"/g, '&quot;')}"
+                            data-description="${description.replace(/"/g, '&quot;')}"
+                            data-title="${titleText.replace(/"/g, '&quot;')}"
+                            class="popup-report-image">
+                           <span style="display: none; font-size: 0.8em; color: #888;">(Image not available)</span>
+                         </div>`;
+                        // *** END FIX ***
 					}
 					itemHTML += `</div>`;
 					return itemHTML;
