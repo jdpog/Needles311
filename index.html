@@ -1054,25 +1054,13 @@
                     // Simplified legend for circle markers
                     div.innerHTML = `
                         <h4>Legend</h4>
-                        <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:8px; height:8px; margin-right: 8px; opacity: 0.7;"></i> Single Report
-                        </div>
-                        <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:18px; height:18px; margin-right: 8px; opacity: 0.7;"></i> Multiple Reports
-                        </div>
-                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; border-radius:50%; width:28px; height:28px; margin-right: 8px; opacity: 0.7;"></i> Many Reports
-                        </div>
-                        <hr style="margin: 5px 0;">
-                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; width: 18px; height: 18px; margin-right: 8px; opacity:1.0;"></i> Recent
-                         </div>
-                         <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                            <i style="background:#e74c3c; width: 18px; height: 18px; margin-right: 8px; opacity:0.6;"></i> ~6 Months Old
-                         </div>
-                         <div style="display: flex; align-items: center;">
-                            <i style="background:#e74c3c; width: 18px; height: 18px; margin-right: 8px; opacity:0.2;"></i> 12+ Months Old
-                         </div>`;
+							<div><i style="background:#e74c3c; width:8px; height:8px;"></i> Single Report</div>
+							<div><i style="background:#e74c3c; width:18px; height:18px;"></i> Multiple Reports</div>
+							<div><i style="background:#e74c3c; width:28px; height:28px;"></i> Many Reports</div>
+							<hr style="margin: 5px 0; border-top: 1px solid #ccc;">
+							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:1.0;"></i> Recent</div>
+							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.6;"></i> ~6 Months Old</div>
+							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.2;"></i> 12+ Months Old</div>`;
                     return div;
                 };
                 map.legend.addTo(map);
