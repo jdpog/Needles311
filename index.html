@@ -116,6 +116,15 @@
 				flex-direction: column;
 				overflow-y: auto; /* Allow scrolling within the panel */
 			}
+			
+			.info-panel .panel-title {
+				  text-align: center;
+				  white-space: nowrap;        /* keep it on one line */
+				  overflow: hidden;           /* prevent overflow */
+				  text-overflow: ellipsis;    /* if it does overflow, show “…” */
+				  font-size: 1.2em;
+				  margin: 0 0 10px;
+			}
 
 			/* --- Leaflet Popups --- */
 			.leaflet-popup-content-wrapper,
@@ -516,6 +525,7 @@
 				</div>
 
 				<div class="info-panel">
+				<h2 class="panel-title">Boston Needle Reports Visualizer</h2>
 					<div class="settings-panel map-settings">
 						<h3>Map Settings</h3>
 						<div class="settings-row">
