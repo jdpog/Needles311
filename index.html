@@ -432,18 +432,28 @@
 				}
 
 				.map-container {
-					order: 1;
-					height: 45vh;
-					min-height: 300px;
 					position: sticky;
-					top: 0; /* Stick map exactly at the top */
+					top: 0;
 					z-index: 1001;
-					background-color: #fff;
-					body.dark-mode & { background-color: #222; }
-					/* Add will-change to potentially help performance/rendering */
-					will-change: transform;
+
+					/* prevent flex from resizing it */
+					flex: 0 0 45vh;
+					height: 45vh !important;
+					max-height: 45vh !important;
 				}
 
+				.map-container #map {
+					height: 100% !important;
+					max-height: 100% !important;
+				}
+				  
+				#map {
+					height: 45vh !important; /* Force the height, use !important as a last resort */
+					max-height: 45vh !important; /* Add max-height for extra insurance */
+					overflow: hidden;        /* Ensure map internals don't overflow */
+					box-sizing: border-box;  /* Just in case */
+				}
+				
 				.controls-section {
 					order: 2;
 					position: sticky;
