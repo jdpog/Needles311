@@ -723,7 +723,13 @@
                         maxZoom: 19
                     }
                 );
-
+				const satelliteLayer = L.tileLayer(
+					"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+						attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS, NOAA',
+						maxZoom: 19
+					}
+				);
+				
                 // Initialize map with Canvas renderer preferred
                 map = L.map("map", {
                     layers: [lightLayer],
@@ -731,7 +737,7 @@
                 }).setView([CENTER_LAT, CENTER_LNG], 16);
 
                 // Add layer control
-                const baseMaps = { "Light": lightLayer, "Dark": darkLayer, "B&W": bwLayer };
+                const baseMaps = { "Light": lightLayer, "Dark": darkLayer, "B&W": bwLayer, "Satellite": satelliteLayer};
                 L.control.layers(baseMaps).addTo(map);
 
                 // Initialize layers
