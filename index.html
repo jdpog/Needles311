@@ -1,1672 +1,1385 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0" />
-		<meta
-			name="description"
-			content="A visualization of Boston 311 needle reports that shows how the reports have changed both geographically and over time." />
-		<meta
-			name="author"
-			content="Jerome Parker-O'Grady" />
-		<title>Boston Needle Reports Visualization (Optimized)</title>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-		<link
-			rel="stylesheet"
-			href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-		<link
-			rel="apple-touch-icon"
-			sizes="180x180"
-			href="/apple-touch-icon.png" />
-		<link
-			rel="icon"
-			type="image/png"
-			sizes="32x32"
-			href="/favicon-32x32.png" />
-		<link
-			rel="icon"
-			type="image/png"
-			sizes="16x16"
-			href="/favicon-16x16.png" />
-		<link
-			rel="shortcut icon"
-			type="image/x-icon"
-			href="favicon.ico?" />
-		<link
-			rel="manifest"
-			href="/site.webmanifest" />
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
-		<script src="data/last_update.js"></script>
-		<style>
-			/* --- Base Styles --- */
-			body,
-			html {
-				margin: 0;
-				padding: 0;
-				height: 100%;
-				font-family: Arial, sans-serif;
-				overflow-x: hidden; /* Prevent horizontal scroll */
-				background-color: #fff; /* Default light mode background */
-				color: #333; /* Default light mode text */
-			}
-			h4 {
-				margin: 0;
-			}
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+	<meta name="description" content="A visualization of Boston 311 needle reports that shows how the reports have changed both geographically and over time.">
+	<meta name="author" content="Jerome Parker-O'Grady">
+	<meta name="theme-color" content="#f5f5f5">
+	<title>Boston Needle Reports Visualizer</title>
 
-			/* --- Layout Grid --- */
-			.page-container {
-				display: grid;
-				grid-template-columns: 1fr; /* Single column layout */
-				grid-template-rows: auto 1fr auto; /* Settings, Content, Controls */
-				grid-template-areas:
-					"settings"
-					"content"
-					"controls";
-				height: 100vh; /* Full viewport height */
-				max-height: 100vh; /* Prevent exceeding viewport height */
-				overflow: hidden; /* Hide overflow for the main container */
-			}
+	<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+	<link rel="manifest" href="/site.webmanifest">
 
-			/* --- Sections --- */
-			.settings-section {
-				grid-area: settings;
-				background-color: #f5f5f5;
-				padding: 10px;
-				overflow-y: auto; /* Allow vertical scroll if needed */
-				max-height: 30vh; /* Limit height on desktop */
-			}
-			.content-section {
-				grid-area: content;
-				display: grid;
-				grid-template-columns: 1fr 350px; /* Map | Info Panel */
-				grid-template-areas: "map info";
-				height: 100%; /* Fill available height */
-				overflow: hidden; /* Prevent content overflow */
-			}
-			.controls-section {
-				grid-area: controls;
-				background-color: #f9f9f9;
-				padding: 10px;
-			}
+	<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+	<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+	<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+	<script defer src="data/last_update.js"></script>
 
-			/* --- Map & Info Panel --- */
-			.map-container {
-				grid-area: map;
-				position: relative; /* Needed for absolute positioning inside */
-				height: 100%;
-				width: 100%;
-			}
-			#map {
-				height: 100%;
-				width: 100%;
-				contain: strict; /* Performance optimization for layout */
-				will-change: transform; /* Hint for GPU acceleration */
-			}
-			.info-panel {
-				grid-area: info;
-				background-color: #f0f8ff;
-				padding: 15px;
-				/* padding-bottom: 60px;  Space for content */
+	<style>
+		:root {
+			--bg: #ffffff;
+			--fg: #2b2b2b;
+			--muted: #666666;
+			--panel: #f0f6fc;
+			--card: #ffffff;
+			--bar: #f5f5f5;
+			--border: #d9dee5;
+			--input-bg: #ffffff;
+			--accent: #3388ff;
+			--red: #e74c3c;
+			--red-dark: #c0392b;
+			--shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+			--panel-w: 360px;
+			--map-h: max(280px, 48vh);
+		}
+		@supports (height: 1dvh) {
+			:root { --map-h: max(280px, 48dvh); }
+		}
+		body.dark {
+			--bg: #1c1c1c;
+			--fg: #e0e0e0;
+			--muted: #a5a5a5;
+			--panel: #262a2f;
+			--card: #33383e;
+			--bar: #222222;
+			--border: #444a52;
+			--input-bg: #3a3f46;
+			--shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+		}
+
+		*, *::before, *::after { box-sizing: border-box; }
+		html, body {
+			margin: 0;
+			height: 100%;
+			font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			font-size: 15px;
+			background: var(--bg);
+			color: var(--fg);
+			-webkit-text-size-adjust: 100%;
+		}
+		h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.25; }
+		h1 { font-size: 1.15rem; text-align: center; }
+		h2 { font-size: 0.95rem; color: var(--fg); margin-bottom: 8px; }
+		a { color: var(--accent); }
+		button, input, select, output { font: inherit; color: inherit; }
+		button {
+			padding: 6px 12px;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			background: var(--input-bg);
+			cursor: pointer;
+			min-height: 34px;
+			white-space: nowrap;
+		}
+		button:hover:not(:disabled) { border-color: var(--accent); }
+		button:disabled { opacity: 0.5; cursor: not-allowed; }
+		input[type="search"], input[type="text"], select {
+			padding: 6px 8px;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			background: var(--input-bg);
+			min-height: 34px;
+		}
+		input[type="search"] { -webkit-appearance: none; appearance: none; }
+		input[type="range"] { cursor: pointer; accent-color: var(--accent); }
+		input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); margin: 0; }
+
+		/* ---------- Layout ---------- */
+		.app {
+			display: grid;
+			height: 100vh;
+			height: 100dvh;
+			grid-template-columns: minmax(0, 1fr) var(--panel-w);
+			grid-template-rows: minmax(0, 1fr) auto;
+			grid-template-areas:
+				"map panel"
+				"controls panel";
+			overflow: hidden;
+		}
+		.map-wrap { grid-area: map; position: relative; min-height: 0; }
+		#map { position: absolute; inset: 0; background: #e9ecef; }
+		body.dark #map { background: #141414; }
+
+		.panel {
+			grid-area: panel;
+			background: var(--panel);
+			border-left: 1px solid var(--border);
+			padding: 14px 16px 10px;
+			overflow-y: auto;
+			display: flex;
+			flex-direction: column;
+			gap: 14px;
+		}
+		.panel footer { margin-top: auto; font-size: 0.8rem; color: var(--muted); text-align: center; line-height: 1.5; }
+		.panel footer hr { border: 0; border-top: 1px solid var(--border); margin: 10px 0; }
+
+		.controls {
+			grid-area: controls;
+			background: var(--bar);
+			border-top: 1px solid var(--border);
+			padding: 8px 12px;
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px 16px;
+		}
+		.buttons { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+		.buttons .ico { margin-right: 6px; }
+		.speed { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; margin-left: 4px; }
+		.timeline { flex: 1 1 320px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+		.timeline input[type="range"] { flex: 1 1 auto; min-width: 0; }
+		.date { font-size: 0.9rem; font-weight: 600; white-space: nowrap; min-width: 7em; text-align: center; font-variant-numeric: tabular-nums; }
+		.date.end { color: var(--muted); font-weight: 500; }
+		body.playing .controls { background: #e6f2ff; }
+		body.dark.playing .controls { background: #1f2a36; }
+
+		/* ---------- Panel sections ---------- */
+		.card {
+			background: var(--card);
+			border-radius: 8px;
+			box-shadow: var(--shadow);
+			padding: 12px;
+		}
+		.row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+		.row:last-child { margin-bottom: 0; }
+		.row > input[type="search"], .row > input[type="text"] { flex: 1 1 auto; min-width: 0; }
+		.row > input[type="range"] { flex: 1 1 auto; min-width: 0; }
+		.row > span.label { flex: 0 0 auto; font-size: 0.9rem; }
+		.row > output { flex: 0 0 3.2em; font-size: 0.9rem; text-align: right; font-variant-numeric: tabular-nums; }
+		.row.check { gap: 8px; font-size: 0.9rem; cursor: pointer; }
+		.row.check.sub { margin-left: 25px; }
+		.status { font-size: 0.8rem; color: var(--muted); min-height: 1.1em; margin: -4px 0 8px; }
+		.status.ok { color: #2e8b57; }
+		.status.warn { color: #d2691e; }
+		.status.err { color: #d9534f; }
+		.hint { font-size: 0.78rem; color: var(--muted); margin: 6px 0 0; }
+
+		.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+		.stat {
+			background: var(--card);
+			border-radius: 8px;
+			box-shadow: var(--shadow);
+			padding: 8px 6px;
+			text-align: center;
+		}
+		.stat h3 { font-size: 0.72rem; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+		.stat p { margin: 0; font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+		.chart { position: relative; height: 190px; }
+
+		/* ---------- Map overlays ---------- */
+		.loading {
+			position: absolute;
+			inset: 0;
+			z-index: 1500;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 12px;
+			background: rgba(255, 255, 255, 0.75);
+			backdrop-filter: blur(2px);
+			color: #333;
+			font-size: 0.95rem;
+			text-align: center;
+			padding: 20px;
+			pointer-events: none;
+		}
+		body.dark .loading { background: rgba(20, 20, 20, 0.7); color: #ddd; }
+		.loading[hidden] { display: none; }
+		.loading.error { pointer-events: auto; }
+		.spinner {
+			width: 36px; height: 36px;
+			border: 4px solid rgba(51, 136, 255, 0.25);
+			border-top-color: var(--accent);
+			border-radius: 50%;
+			animation: spin 0.9s linear infinite;
+		}
+		.loading.error .spinner { display: none; }
+		@keyframes spin { to { transform: rotate(360deg); } }
+		@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+
+		.needle-points { pointer-events: none; }
+
+		.legend {
+			padding: 6px 10px;
+			background: rgba(255, 255, 255, 0.88);
+			box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+			border-radius: 6px;
+			line-height: 22px;
+			color: #444;
+			font-size: 0.8rem;
+		}
+		body.dark .legend { background: rgba(40, 40, 40, 0.88); color: #ddd; }
+		.legend h4 { font-size: 0.85rem; margin-bottom: 2px; }
+		.legend .sw {
+			display: inline-block;
+			vertical-align: middle;
+			width: 16px; height: 16px;
+			margin-right: 8px;
+			border-radius: 50%;
+			background: var(--red);
+		}
+		.legend hr { margin: 4px 0; border: 0; border-top: 1px solid rgba(128, 128, 128, 0.35); }
+
+		/* Leaflet theming */
+		.leaflet-container { font-family: inherit; }
+		body.dark .leaflet-bar a,
+		body.dark .leaflet-control-layers,
+		body.dark .leaflet-control-attribution { background: #2e2e2e; color: #ddd; }
+		body.dark .leaflet-bar a { border-bottom-color: #555; }
+		body.dark .leaflet-control-attribution a { color: #8ab4f8; }
+		body.dark .leaflet-control-layers-toggle { filter: invert(0.85); }
+
+		.needle-popup .leaflet-popup-content-wrapper,
+		.needle-popup .leaflet-popup-tip { background: var(--panel); color: var(--fg); }
+		.needle-popup .leaflet-popup-content { margin: 10px 12px; line-height: 1.35; font-size: 0.86rem; }
+		.needle-popup .leaflet-popup-content-wrapper { border-radius: 8px; }
+		.needle-popup a.leaflet-popup-close-button { color: var(--muted); }
+		.popup-body { max-height: 320px; overflow-y: auto; padding-right: 4px; }
+		.popup-body h4 { font-size: 0.95rem; margin-bottom: 4px; }
+		.popup-body .meta { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+		.popup-body .muted { color: var(--muted); font-size: 0.8rem; }
+		.report-item {
+			background: var(--card);
+			border-radius: 6px;
+			box-shadow: var(--shadow);
+			padding: 6px 8px;
+			margin-bottom: 6px;
+		}
+		.report-item .desc { margin-top: 3px; white-space: pre-line; overflow-wrap: anywhere; }
+		.report-item img {
+			display: block;
+			max-width: 100%;
+			max-height: 150px;
+			object-fit: contain;
+			margin-top: 6px;
+			border-radius: 4px;
+			cursor: zoom-in;
+			background: rgba(128, 128, 128, 0.1);
+		}
+
+		/* Lightbox */
+		.lightbox {
+			position: fixed; inset: 0; z-index: 10001;
+			background: rgba(0, 0, 0, 0.85);
+			display: flex; align-items: center; justify-content: center;
+			padding: 16px;
+		}
+		.lightbox[hidden] { display: none; }
+		.lightbox-box {
+			position: relative;
+			background: var(--card);
+			color: var(--fg);
+			border-radius: 8px;
+			padding: 16px 18px;
+			max-width: min(92vw, 900px);
+			max-height: 92vh;
+			overflow: auto;
+			box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+		}
+		.lightbox-box h3 { font-size: 1rem; padding-right: 32px; margin-bottom: 8px; }
+		.lightbox-box img { display: block; max-width: 100%; max-height: calc(92vh - 140px); margin: 0 auto; border-radius: 4px; }
+		.lightbox-box p { font-size: 0.9rem; color: var(--muted); text-align: center; margin: 10px 0 0; white-space: pre-line; }
+		.lightbox-close {
+			position: absolute; top: 8px; right: 10px;
+			border: 0; background: transparent; font-size: 1.6rem; line-height: 1;
+			min-height: 0; padding: 4px 8px; color: var(--muted);
+		}
+
+		/* ---------- Small screens ---------- */
+		@media (max-width: 900px) {
+			html, body { height: auto; overflow: visible; }
+			.app {
 				display: flex;
 				flex-direction: column;
-				overflow-y: auto; /* Allow scrolling within the panel */
+				height: auto;
+				overflow: visible;
 			}
-			
-			.info-panel .panel-title {
-				  text-align: center;
-				  white-space: nowrap;        /* keep it on one line */
-				  overflow: hidden;           /* prevent overflow */
-				  text-overflow: ellipsis;    /* if it does overflow, show “…” */
-				  font-size: 1.2em;
-				  margin: 0 0 10px;
-			}
-
-			/* --- Leaflet Popups --- */
-			.leaflet-popup-content-wrapper,
-			.leaflet-popup-content,
-			.leaflet-popup-tip {
-				background-color: #f0f8ff; /* Light blue background */
-				color: #333;
-			}
-			.leaflet-popup-content-wrapper {
-				width: 250px; /* Fixed width for consistency */
-				max-width: 250px;
-				border-radius: 5px;
-			}
-			.report-item { /* Individual report details in popup */
-				background: white;
-				border-radius: 5px;
-				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-				padding: 5px;
-				margin-bottom: 5px;
-				color: #333;
-				font-family: Arial, sans-serif;
-				font-size: 0.9em;
-			}
-
-			/* --- Controls & Settings --- */
-			.controls { /* General controls container (if used) */
-				padding: 10px;
-				background-color: #f5f5f5;
-			}
-			.legend { /* Map legend styling */
-				padding: 6px 8px;
-				background: rgba(255, 255, 255, 0.8);
-				box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-				border-radius: 5px;
-				line-height: 24px;
-				color: #555;
-				font-size: 0.9em;
-			}
-			.legend i { /* Color swatch in legend */
-				width: 18px;
-				height: 18px;
-				float: left;
-				margin-right: 8px;
-				opacity: 0.7;
-				border-radius: 50%;
-			}
-			.info { /* General info box styling (if used) */
-				padding: 10px;
-				background-color: #e3f2fd;
-				margin-bottom: 10px;
-				border-radius: 4px;
-			}
-			.animation-controls { /* Container for playback controls */
-				margin-top: 0;
-				background-color: #f9f9f9;
-				border-radius: 4px;
-				display: flex;
-				flex-wrap: nowrap; /* Allow wrapping on smaller screens */
-				align-items: center;
-				justify-content: space-around;
-				gap: 10px; /* Spacing between controls */
-			}
-			.animation-controls button {
-				padding: 5px 10px; /* Consistent button padding */
-				cursor: pointer;
-				border: 1px solid #ccc;
-				background-color: #fff;
-				border-radius: 4px;
-			}
-			.animation-controls button:disabled {
-				cursor: not-allowed;
-				opacity: 0.6;
-			}
-			.time-slider-container { /* Slider and date display area */
-				flex-grow: 1; /* Take available space */
-				display: flex;
-				align-items: center;
-				gap: 0px; /* Spacing around slider */
-				width: 100%;  /* Ensure minimum width */
-			}
-			#timeSlider {
-				flex-grow: 1; /* Slider takes most space */
-				cursor: pointer;
-			}
-			.date-display { /* Start/End date text */
-				width: 180px; /* Fixed width for alignment */
-				text-align: center;
-				font-weight: bold;
-				font-size: 0.9em;
-				white-space: nowrap;
-			}
-			.speed-control { /* Speed dropdown container */
-				display: flex;
-				align-items: center;
-				gap: 5px;
-			}
-			.settings-panel { /* General settings panel styling */
-				padding: 10px;
-				background-color: #f5f5f5;
-				border-radius: 4px;
-				margin-bottom: 15px; /* Space below panels */
-			}
-			.settings-panel h3 {
-				margin-top: 0;
-				margin-bottom: 10px;
-				font-size: 1.1em;
-			}
-			.settings-row { /* Row layout for label + input */
-				display: flex;
-				align-items: center;
-				gap: 10px;
-				margin-bottom: 10px;
-				flex-wrap: nowrap;
-				flex-direction: row;
-			}
-			.settings-row label {
-				flex: 0 0 auto; /* Label takes minimum space */
-				min-width: 110px; /* Consistent label width */
-				font-size: 0.9em;
-			}
-			.settings-row input[type="number"],
-			.settings-row input[type="text"],
-			.settings-row input[type="range"],
-			.settings-row select,
-			.settings-row button {
-				padding-top: 5px;
-				padding-bottom: 5px;
-				border: 1px solid #ccc;
-				border-radius: 4px;
-				font-size: 0.9em;
-			}
-			.settings-row input[type="text"] {
-				flex: 1 1 auto; /* Text input takes available space */
-				min-width: 0; /* Allow shrinking */
-			}
-
-			.settings-row input[type="number"] {
-				width: 100px;
-			}
-			.settings-row input[type="range"] {
-				flex: 1 1 auto;
-				min-width: 0;      /* very important so it can shrink below its intrinsic width */
-				width: auto;       /* remove any hard‑coded widths */
-				box-sizing: border-box;
-				cursor: pointer;
-			}
-			.settings-row span { /* e.g., Radius value display */
+			.map-wrap {
+				order: 0;
+				position: sticky;
+				top: 0;
+				z-index: 30;
 				flex: 0 0 auto;
-				/* min-width: 30px;  Space for value */
-				/* text-align: right; */
-				font-size: 0.9em;
+				height: var(--map-h);
 			}
-			.settings-row button {
-				flex: 0 0 auto; /* Button takes minimum space */
-				margin-left: auto;
-				cursor: pointer;
+			.panel { order: 2; }
+			.controls {
+				order: 1;
+				position: sticky;
+				top: var(--map-h);
+				z-index: 29;
+				padding: 8px 10px;
+				gap: 6px 12px;
+				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 			}
-			.settings-suboption { /* Indented options */
-				margin-left: 20px;
-				font-size: 0.9em;
-				padding: 5px 0;
-				display: flex;
-				align-items: center;
-				gap: 10px;
-			}
-			.settings-suboption label {
-				min-width: 110px; /* Adjust width for indentation */
-			}
-
-			/* --- Chart & Stats --- */
-			.chart-container {
-				width: 100%;
-				height: 200px; /* Fixed height for chart */
-				position: relative; /* Needed for Chart.js responsiveness */
-				margin-bottom: 15px;
-			}
-			.stats-grid { /* Layout for stat cards */
-				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Responsive columns */
-				gap: 10px;
-				margin-bottom: 15px;
-			}
-			.stat-card { /* Individual statistic display */
-				background: white;
-				padding: 10px;
-				border-radius: 5px;
-				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-				text-align: center;
-			}
-			.stat-card h4 {
-				margin-bottom: 5px;
-				font-size: 0.9em;
-				color: #555;
-			}
-			.stat-card p {
-				margin: 0;
-				font-size: 1.1em;
-				font-weight: bold;
-			}
-
-			/* --- Performance & Animation --- */
-			body.animation-active {
-				/* Prevent interactions outside controls during animation */
-				/* pointer-events: none; */ /* Disabled - caused issues */
-			}
-			body.animation-active .animation-controls,
-			body.animation-active .settings-panel {
-				/* Ensure controls remain interactive */
-				/* pointer-events: auto; */ /* Disabled - caused issues */
-			}
-			.leaflet-tile-container,
-			.leaflet-marker-pane { /* Hint for GPU acceleration */
-				will-change: transform;
-			}
-			body.animation-active .animation-controls {
-				background-color: #e6f7ff; /* Highlight controls during animation */
-			}
-
-			/* --- Dark Mode --- */
-			body.dark-mode {
-				background-color: #222;
-				color: #ddd;
-			}
-			body.dark-mode .settings-section,
-			body.dark-mode .settings-panel {
-				background-color: #333 !important;
-				color: #ddd !important;
-				border-color: #555;
-			}
-			body.dark-mode .controls-section,
-			body.dark-mode .animation-controls {
-				background-color: #2a2a2a !important;
-				color: #ddd !important;
-			}
-			body.dark-mode .info-panel {
-				background-color: #3a3a3a !important;
-				color: #ddd !important;
-			}
-			body.dark-mode .stat-card,
-			body.dark-mode .report-item {
-				background-color: #444 !important;
-				border-color: #555;
-				color: #ddd !important;
-			}
-			body.dark-mode .leaflet-popup-content-wrapper,
-			body.dark-mode .leaflet-popup-content,
-			body.dark-mode .leaflet-popup-tip {
-				background-color: #3a3a3a !important;
-				color: #ddd !important;
-			}
-			body.dark-mode .legend {
-				background: rgba(50, 50, 50, 0.8);
-				color: #ccc;
-			}
-			body.dark-mode input,
-			body.dark-mode select,
-			body.dark-mode button {
-				background-color: #555;
-				color: #ddd;
-				border-color: #777;
-			}
-			body.dark-mode button:disabled {
-				background-color: #444;
-				opacity: 0.5;
-			}
-			body.dark-mode #last-update {
-				color: #aaa;
-			}
-
-
-			/* --- Responsive Adjustments --- */
-			@media (max-width: 992px) {
-				*, /* Apply border-box to all elements */
-				*::before,
-				*::after {
-					box-sizing: border-box;
-				}
-
-				html {
-					/* Ensure no unexpected overflow restrictions */
-					overflow-x: hidden; /* Keep horizontal restriction */
-					overflow-y: auto;   /* Explicitly allow vertical scroll */
-					height: 100%;
-				}
-
-				body {
-					margin: 0; /* Reset default body margin */
-					height: auto; /* Allow body height to adapt */
-					overflow: visible; /* Let body content flow */
-					min-height: 100%; /* Ensure body can contain scrolling content */
-				}
-
-				.page-container {
-					display: flex;
-					flex-direction: column;
-					height: auto;
-					max-height: none;
-					overflow: visible; /* Important: Let body handle scrolling */
-					width: 100%;
-					min-height: 100vh; /* Ensure container fills viewport height */
-				}
-
-				.content-section {
-					display: contents;
-				}
-
-				.map-container {
-					position: sticky;
-					top: 0;
-					z-index: 1001;
-
-					/* prevent flex from resizing it */
-					flex: 0 0 45vh;
-					height: 45vh !important;
-					max-height: 45vh !important;
-				}
-
-				.map-container #map {
-					height: 100% !important;
-					max-height: 100% !important;
-				}
-				  
-				#map {
-					height: 45vh !important; /* Force the height, use !important as a last resort */
-					max-height: 45vh !important; /* Add max-height for extra insurance */
-					overflow: hidden;        /* Ensure map internals don't overflow */
-					box-sizing: border-box;  /* Just in case */
-				}
-				
-				.controls-section {
-					order: 2;
-					position: sticky;
-					top: 45vh; /* Stick controls below the map's min-height */
-					/* Or try top: 50vh; if map height is consistently 50vh */
-					z-index: 1000;
-					background-color: #f9f9f9;
-					body.dark-mode & { background-color: #2a2a2a; }
-					/* Add will-change */
-					will-change: transform;
-				}
-
-				.animation-controls { /* Container for playback controls */
-					flex-wrap: wrap; /* Allow wrapping on smaller screens */
-				}
-				.settings-section {
-					order: 3;
-					max-height: none;
-					overflow-y: visible;
-				}
-
-				.info-panel {
-					order: 4;
-					max-height: none;
-					overflow-y: visible;
-					padding-bottom: 15px;
-					width: 100%;
-					/* Add margin-top to clear the sticky header visually if needed, */
-					/* but scrolling should handle the overlap naturally */
-					/* margin-top: calc(300px + 70px); /* Example if controls height is 70px */
-				}
-
-				.legend {
-					transform: scale(0.6);
-					transform-origin: bottom right;
-				}
-
-				.leaflet-popup-content-wrapper {
-					transform: scale(0.6);
-					transform-origin: bottom;
-				}
-
-				/* --- Keep other mobile styles --- */
-				.settings-panel.map-settings {
-					order: 0; /* Within info-panel */
-					margin-top: 0;
-					margin-bottom: 15px;
-				}
-				#addressInput { width: 100% !important; margin-bottom: 5px; }
-				#searchAddress { margin-left: 0; }
-				.legend { transform: scale(0.8); transform-origin: bottom right; }
-				.leaflet-popup-content-wrapper { transform: scale(0.9); transform-origin: bottom; }
-				.time-slider-container { min-width: 200px; }
-				.leaflet-container a.leaflet-popup-close-button {top: 30px; right: 10px;}
-			}
-
-			@media (max-width: 600px) {
-				.stats-grid {
-					grid-template-columns: repeat(3, 1fr); /* 3 columns on small screens */
-					gap: 5px;
-				}
-				.stat-card { padding: 5px; font-size: 0.8rem; }
-				.stat-card h4 { font-size: 0.7rem; }
-				.animation-controls button { padding: 4px 8px; font-size: 0.9em; }
-				.time-slider-container { align-items: stretch; gap: 5px; } /* Stack slider vertically */
-				#timeSlider { width: 100%; }
-				.speed-control { justify-content: center; } /* Center speed control */
-			}
-		</style>
-	</head>
-	<body>
-		<div class="page-container">
-			<div class="settings-section" style="display: none;">
-				</div>
-
-			<div class="content-section">
-				<div class="map-container">
-					<div id="map"></div>
-				</div>
-
-				<div class="info-panel">
-				<h2 class="panel-title">Boston Needle Reports Visualizer</h2>
-					<div class="settings-panel map-settings">
-						<h3>Map Settings</h3>
-						<div class="settings-row">
-							<input type="text" id="addressInput" placeholder="Enter address/neighborhood" />
-							<button id="searchAddress">Search</button>
-						</div>
-						<div
-							id="geocodeStatus"
-							style="margin-top: -5px; margin-bottom: 10px; font-size: 0.8em; color: #666;"></div>
-						<div class="settings-row">
-							<label for="radiusSlider">Radius (mi):</label>
-							<input
-								type="range"
-								id="radiusSlider"
-								min="0.1"
-								max="3.1"
-								step="0.05"
-								value="0.25" />
-							<span id="radiusValue">0.25</span>
-						</div>
-						<div class="settings-row">
-							<label for="toggleHeatmap">Show Heatmap:</label>
-							<input
-								type="checkbox"
-								id="toggleHeatmap" />
-						</div>
-						<div class="settings-row">
-							<label for="toggleMarkers">Show Markers:</label>
-							<input
-								type="checkbox"
-								id="toggleMarkers"
-								checked />
-						</div>
-						<div class="settings-suboption">
-							<label for="toggleMarkerGrouping">Group by Address:</label>
-							<input
-								type="checkbox"
-								id="toggleMarkerGrouping"
-								checked />
-						</div>
-						<div class="settings-row">
-							<input type="text" id="keywordInput" placeholder="Filter description...">
-							<button id="clearFilterButton" disabled>Clear</button>
-						</div>
-					</div>
-
-					<h3>Needle Reports Statistics</h3>
-					<div class="stats-grid">
-						<div class="stat-card">
-							<h4>Total Reports</h4>
-							<p id="totalReports">0</p>
-						</div>
-						<div class="stat-card">
-							<h4>Active Locations</h4>
-							<p id="activeLocations">0</p>
-						</div>
-						<div class="stat-card">
-							<h4>Recent (30d)</h4>
-							<p id="recentReports">0</p>
-						</div>
-					</div>
-
-					<h3>Reports by Year</h3>
-					<div class="chart-container">
-						<canvas id="yearlyChart"></canvas>
-					</div>
-					<div style="margin-top: auto;">
-						<p style="font-size: 0.9rem; color: #555; text-align: center; margin-top: 0;margin-bottom: 5px;">Source: <a href="https://311.boston.gov/" target="_blank">Boston 311</a> Needle Cleanup reports.</p>
-						<div id="last-update" style="padding-top: 0px; font-size: 0.8rem; color: #555; text-align: center;">
-							Loading update time...
-						</div>
-						<hr style="width:100%; height:1px; color:#555; background-color:#555; border-width:0;margin-top:15px;">
-						<p style="font-size: 0.9rem; color: #555; text-align: center; margin-bottom: 5px;">Created for <a href="https://oppose-shuntington-shelter.com/" target="_blank">oppose-shuntington-shelter.com</a>.</p>
-					</div>
-				</div>
-			</div>
-
-			<div class="controls-section">
-				<div class="animation-controls">
-					<button id="playButton">▶️ Play</button>
-					<button id="pauseButton" disabled>⏸️ Pause</button>
-					<button id="restartButton">🔄 Restart</button>
-					<div class="speed-control">
-						<label for="speedControl">Speed:</label>
-						<select id="speedControl">
-							<option value="0.5">0.5x</option>
-							<option value="1" selected>1x</option>
-							<option value="2">2x</option>
-							<option value="5">5x</option>
-							<option value="10">10x</option>
-							<option value="25">25x</option>
-							<option value="50">50x</option>
-						</select>
-					</div>
-					<div class="time-slider-container">
-						<div class="date-display" id="currentDate">-</div>
-						<input type="range" id="timeSlider" min="0" max="100" value="0" disabled />
-						<div class="date-display" id="endDate">-</div>
-					</div>
-				</div>
+			.buttons { width: 100%; flex-wrap: nowrap; }
+			.buttons button { flex: 0 0 auto; min-width: 48px; padding: 6px 10px; font-size: 1.05rem; }
+			.buttons .txt, .speed .txt { display: none; }
+			.buttons .ico { margin-right: 0; }
+			.speed { margin-left: auto; }
+			.speed select { min-height: 34px; }
+			.timeline { flex-basis: 100%; gap: 8px; }
+			.date { min-width: 0; font-size: 0.82rem; }
+			.panel { border-left: 0; padding: 14px 12px 20px; }
+			.legend { font-size: 0.72rem; line-height: 18px; padding: 4px 8px; }
+			.legend .sw { width: 12px; height: 12px; margin-right: 6px; }
+			.legend h4 { font-size: 0.76rem; }
+			.legend .lg-full { display: none; }
+			.popup-body { max-height: 220px; }
+			.chart { height: 170px; }
+			.leaflet-control-attribution { font-size: 10px; }
+		}
+		@media (max-width: 400px) {
+			.stat p { font-size: 1rem; }
+			.stat h3 { font-size: 0.68rem; }
+		}
+	</style>
+</head>
+<body>
+	<div class="app">
+		<div class="map-wrap">
+			<div id="map" role="application" aria-label="Map of needle reports"></div>
+			<div id="loading" class="loading" aria-live="polite">
+				<div class="spinner"></div>
+				<div id="loadingText">Loading needle reports…</div>
 			</div>
 		</div>
 
-		<script>
-            // --- Global Variables & Configuration ---
-			let CENTER_LAT = 42.32995; // Default center (near MassArt)
-			let CENTER_LNG = -71.11142;
-			let RADIUS_MILES = 0.25; // Default radius
-			let RADIUS_METERS = RADIUS_MILES * 1609.34;
-			let csvData = []; // Stores the loaded report data (from JSON)
-			let allReports = []; // Stores processed reports within the radius/filter (used for heatmap)
-			let reportsByLocation = new Map(); // Groups reports by location for markers
-			// REMOVED: globalDateRangeSet flag
-			let startDate = null; // Global start date for the entire dataset
-			let endDate = null;   // Global end date for the entire dataset
-			let currentDate = null; // Managed by AnimationController
-			let yearlyReportsChart = null; // Chart.js instance
-			let heatLayer = null; // Leaflet.heat layer
-			let markersLayer = null; // Layer for canvas markers
-            let radiusCircle = null; // Circle showing the search radius
-            let centerMarker = null; // Marker at the center of the search area
-            let map = null; // Leaflet map instance
-            let animationController = null; // Animation controller instance
+		<aside class="panel">
+			<h1>Boston Needle Reports Visualizer</h1>
 
-            // *** Variable to track open popup state ***
-            let openPopupLocationKey = null; // Stores the key (e.g., address or coords) of the marker with the open popup
+			<section class="card">
+				<h2>Map Settings</h2>
+				<form class="row" id="searchForm" autocomplete="off">
+					<input type="search" id="addressInput" placeholder="Address or neighborhood" aria-label="Address or neighborhood">
+					<button type="submit">Search</button>
+				</form>
+				<div id="geocodeStatus" class="status" aria-live="polite"></div>
+				<label class="row">
+					<span class="label">Radius (mi)</span>
+					<input type="range" id="radiusSlider" min="0.1" max="3.1" step="0.05" value="0.25">
+					<output id="radiusValue" for="radiusSlider">0.25</output>
+				</label>
+				<label class="row check"><input type="checkbox" id="toggleHeatmap"><span>Show heatmap</span></label>
+				<label class="row check"><input type="checkbox" id="toggleMarkers" checked><span>Show markers</span></label>
+				<label class="row check sub"><input type="checkbox" id="toggleGrouping" checked><span>Group by address</span></label>
+				<div class="row">
+					<input type="search" id="keywordInput" placeholder="Filter by description…" aria-label="Filter by description">
+					<button type="button" id="clearFilter" disabled>Clear</button>
+				</div>
+				<div id="textStatus" class="status" aria-live="polite"></div>
+			</section>
 
-            // Debounce function
-            function debounce(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
-                        clearTimeout(timeout);
-                        func(...args);
-                    };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            }
+			<section>
+				<h2>Statistics</h2>
+				<div class="stats">
+					<div class="stat"><h3>Total Reports</h3><p id="totalReports">–</p></div>
+					<div class="stat"><h3>Active Locations</h3><p id="activeLocations">–</p></div>
+					<div class="stat"><h3>Recent (30d)</h3><p id="recentReports">–</p></div>
+				</div>
+				<p class="hint">Counts cover reports inside the circle, up to the selected date.</p>
+			</section>
 
-            // --- Initialization ---
-            document.addEventListener('DOMContentLoaded', function() {
-                initializeMap();
-                initializeUI(); // Initialize UI elements including AnimationController
-                loadData();     // Load data, calculate global range, THEN process
+			<section>
+				<h2>Reports by Year</h2>
+				<div class="chart"><canvas id="yearlyChart" aria-label="Reports by year" role="img"></canvas></div>
+			</section>
 
-                // Set last updated time
-                const el = document.getElementById('last-update');
-                if (el && typeof window.LAST_UPDATED !== 'undefined' && window.LAST_UPDATED) {
-                    try {
-                        const d = new Date(window.LAST_UPDATED);
-                        // Check if the date is valid before formatting
-                        if (!isNaN(d.getTime())) {
-                             el.textContent = 'Data last updated: ' + d.toLocaleString();
-                        } else {
-                             el.textContent = 'Data last updated: (Unavailable)';
-                             console.warn("LAST_UPDATED variable contains an invalid date string:", window.LAST_UPDATED);
-                        }
-                    } catch (e) {
-                         el.textContent = 'Data last updated: (Error parsing date)';
-                         console.error("Error parsing LAST_UPDATED date:", e);
-                    }
-                } else {
-                     el.textContent = 'Data last updated: (Not specified)';
-                }
-            });
+			<footer>
+				Source: <a href="https://311.boston.gov/" target="_blank" rel="noopener">Boston 311</a> Needle Cleanup reports.<br>
+				<span id="lastUpdate">Data last updated: –</span>
+				<hr>
+				Created for <a href="https://oppose-shuntington-shelter.com/" target="_blank" rel="noopener">oppose-shuntington-shelter.com</a>.
+			</footer>
+		</aside>
 
-            function initializeMap() {
-                // Define base layers
-                const lightLayer = L.tileLayer(
-                    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-                        attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-                        subdomains: "abcd", maxZoom: 19
-                    }
-                );
-                const darkLayer = L.tileLayer(
-                    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-                        attribution: '&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap contributors',
-                        subdomains: "abcd", maxZoom: 19
-                    }
-                );
-                const bwLayer = L.tileLayer(
-                    "https://api.maptiler.com/maps/toner-v2/{z}/{x}/{y}.png?key=XyTvOTvEcdEh8fz4uDpw", {
-                        attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; OpenStreetMap contributors',
-                        maxZoom: 19
-                    }
-                );
-				const satelliteLayer = L.tileLayer(
-					"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-						attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS, NOAA',
-						maxZoom: 19
+		<div class="controls">
+			<div class="buttons">
+				<button type="button" id="playBtn" disabled aria-label="Play"><span class="ico">▶</span><span class="txt">Play</span></button>
+				<button type="button" id="pauseBtn" disabled aria-label="Pause"><span class="ico">⏸</span><span class="txt">Pause</span></button>
+				<button type="button" id="restartBtn" disabled aria-label="Restart"><span class="ico">↺</span><span class="txt">Restart</span></button>
+				<label class="speed"><span class="txt">Speed</span>
+					<select id="speedSelect" aria-label="Playback speed (days per second)">
+						<option value="1">1 day/s</option>
+						<option value="5">5 days/s</option>
+						<option value="10">10 days/s</option>
+						<option value="25" selected>25 days/s</option>
+						<option value="50">50 days/s</option>
+						<option value="100">100 days/s</option>
+						<option value="365">1 year/s</option>
+					</select>
+				</label>
+			</div>
+			<div class="timeline">
+				<span class="date" id="currentDate">–</span>
+				<input type="range" id="timeSlider" min="0" max="100" value="0" disabled aria-label="Selected date">
+				<span class="date end" id="endDate">–</span>
+			</div>
+		</div>
+	</div>
+
+	<div id="lightbox" class="lightbox" hidden>
+		<div class="lightbox-box" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+			<button type="button" class="lightbox-close" id="lbClose" aria-label="Close">&times;</button>
+			<h3 id="lbTitle"></h3>
+			<img id="lbImg" alt="Report photo">
+			<p id="lbCaption"></p>
+		</div>
+	</div>
+
+	<noscript><p style="padding:20px">This visualization needs JavaScript.</p></noscript>
+
+	<script type="module">
+		// =====================================================================
+		// Configuration
+		// =====================================================================
+
+		// Optional CARTO basemaps key. CARTO's Positron/Dark Matter tiles have
+		// required a key since September 2026. A free key for non-commercial use
+		// is available at https://carto.com/basemaps/apikey/ . With no key, the
+		// Light and Dark layers use Esri's gray canvas instead (crisp to zoom 16).
+		const CARTO_API_KEY = '';
+		const MAPTILER_KEY = 'XyTvOTvEcdEh8fz4uDpw';
+
+		const DEFAULT_CENTER = [42.32995, -71.11142]; // near South Huntington Ave
+		const DEFAULT_ZOOM = 16;
+		const DEFAULT_RADIUS_MILES = 0.25;
+		const METERS_PER_MILE = 1609.34;
+		const DAY = 86400000;
+		const MONTH = DAY * 30.4375;
+		const DATA_FILES = {
+			core: 'data/reports.core.json',
+			text: 'data/reports.text.json',
+			raw: 'data/reports.json'
+		};
+		const LAST_UPDATED = typeof window.LAST_UPDATED === 'string' ? window.LAST_UPDATED : '';
+		const VERSION_TAG = LAST_UPDATED ? '?v=' + encodeURIComponent(LAST_UPDATED) : '';
+		const POPUP_ITEM_LIMIT = 40;
+
+		// =====================================================================
+		// Helpers
+		// =====================================================================
+		const $ = (id) => document.getElementById(id);
+		const fmtDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+		const fmtDateTime = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+		const fmtInt = new Intl.NumberFormat('en-US');
+		const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+		function escapeHtml(value) {
+			return String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+		}
+		// Number of elements in the sorted array (first `len` entries) that are <= x.
+		function countUpTo(arr, len, x) {
+			let lo = 0, hi = len;
+			while (lo < hi) {
+				const mid = (lo + hi) >>> 1;
+				if (arr[mid] <= x) lo = mid + 1; else hi = mid;
+			}
+			return lo;
+		}
+		function debounce(fn, ms) {
+			let timer = 0;
+			return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+		}
+		function coordLabel(lat, lng) { return `(${lat.toFixed(4)}, ${lng.toFixed(4)})`; }
+
+		// =====================================================================
+		// Data
+		// =====================================================================
+		// Columnar dataset sorted by time. Indices into these arrays identify a report.
+		const D = {
+			n: 0,
+			t: null,       // Float64Array, epoch ms, ascending
+			lat: null,     // Float64Array
+			lng: null,     // Float64Array
+			addr: null,    // Int32Array -> index into addrs
+			addrs: [],     // display strings ('' = unknown)
+			desc: null,    // string[] | null until text file loads
+			descLower: null,
+			media: null,   // string[] | null
+			mediaPrefix: '',
+			tMin: 0,
+			tMax: 0
+		};
+
+		// View state
+		const S = {
+			center: null,          // L.LatLng
+			radiusM: DEFAULT_RADIUS_MILES * METERS_PER_MILE, // -1 = unlimited
+			keyword: '',
+			group: true,
+			showMarkers: true,
+			showHeat: false,
+			cur: 0,                // selected date, epoch ms
+			playing: false,
+			speed: 25              // days per second
+		};
+
+		// Current selection (inside radius + keyword), ascending by time.
+		let sel = { idx: new Int32Array(0), t: new Float64Array(0), locs: [] };
+
+		function ingestColumns(core) {
+			const n = core.n;
+			const t = new Float64Array(n);
+			let acc = 0;
+			for (let i = 0; i < n; i++) { acc += core.t[i]; t[i] = acc * 1000; }
+			const lat = new Float64Array(n), lng = new Float64Array(n);
+			for (let i = 0; i < n; i++) { lat[i] = core.lat[i] / 1e6; lng[i] = core.lng[i] / 1e6; }
+			D.n = n; D.t = t; D.lat = lat; D.lng = lng;
+			D.addr = Int32Array.from(core.a);
+			D.addrs = core.addrs;
+			D.tMin = t[0]; D.tMax = t[n - 1];
+		}
+
+		// Fallback: build the same columns from the verbose reports.json.
+		function ingestRows(rows) {
+			const recs = [];
+			const seen = new Set();
+			for (const r of rows) {
+				if (!r || typeof r !== 'object') continue;
+				const lat = parseFloat(r.lat), lng = parseFloat(r.long);
+				const ts = Date.parse(r.requested_datetime);
+				if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(ts)) continue;
+				if (lat < 41.5 || lat > 43 || lng < -72 || lng > -70) continue;
+				const desc = r.description || '', media = r.media_url || '';
+				const key = ts + '|' + lat.toFixed(6) + '|' + lng.toFixed(6) + '|' + desc + '|' + media;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				recs.push({ ts, lat, lng, addr: String(r.address || '').trim().replace(/\s+/g, ' '), desc, media });
+			}
+			recs.sort((a, b) => a.ts - b.ts);
+			const n = recs.length;
+			const t = new Float64Array(n), lat = new Float64Array(n), lng = new Float64Array(n), addr = new Int32Array(n);
+			const addrs = [], addrIndex = new Map();
+			const desc = new Array(n), media = new Array(n);
+			for (let i = 0; i < n; i++) {
+				const r = recs[i];
+				t[i] = r.ts; lat[i] = r.lat; lng[i] = r.lng;
+				const k = r.addr.toLowerCase();
+				let ai = addrIndex.get(k);
+				if (ai === undefined) { ai = addrs.length; addrIndex.set(k, ai); addrs.push(r.addr); }
+				addr[i] = ai;
+				desc[i] = r.desc; media[i] = r.media;
+			}
+			D.n = n; D.t = t; D.lat = lat; D.lng = lng; D.addr = addr; D.addrs = addrs;
+			D.desc = desc; D.media = media; D.mediaPrefix = '';
+			D.tMin = n ? t[0] : 0; D.tMax = n ? t[n - 1] : 0;
+		}
+
+		function mediaUrl(i) {
+			const m = D.media && D.media[i];
+			if (!m) return '';
+			return /^https?:\/\//i.test(m) ? m : D.mediaPrefix + m;
+		}
+
+		function isStale(generated) {
+			if (!LAST_UPDATED || !generated) return false;
+			const g = Date.parse(generated), u = Date.parse(LAST_UPDATED);
+			return Number.isFinite(g) && Number.isFinite(u) && (u - g) > 12 * 3600e3;
+		}
+
+		async function fetchJson(url) {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+			return res.json();
+		}
+
+		async function loadData() {
+			const t0 = performance.now();
+			let usedCompact = false;
+			setLoading('Loading needle reports…');
+			try {
+				const core = await fetchJson(DATA_FILES.core + VERSION_TAG);
+				if (!core || core.v !== 1 || !Array.isArray(core.t) || core.n !== core.t.length || !core.n) throw new Error('unexpected format');
+				if (isStale(core.generated)) throw new Error('compact data is older than the last update');
+				ingestColumns(core);
+				usedCompact = true;
+			} catch (err) {
+				console.warn('Compact data unavailable, falling back to reports.json:', err.message);
+				setLoading('Loading full report data (this can take a moment)…');
+				const rows = await fetchJson(DATA_FILES.raw + VERSION_TAG);
+				if (!Array.isArray(rows) || !rows.length) throw new Error('reports.json is empty or malformed');
+				ingestRows(rows);
+			}
+			console.info(`Loaded ${fmtInt.format(D.n)} reports in ${Math.round(performance.now() - t0)} ms (${usedCompact ? 'compact' : 'raw'})`);
+			onCoreReady();
+			if (usedCompact) loadText();
+		}
+
+		async function loadText() {
+			setTextStatus('Loading descriptions and photos…');
+			try {
+				const text = await fetchJson(DATA_FILES.text + VERSION_TAG);
+				if (!text || text.v !== 1 || text.n !== D.n || !Array.isArray(text.d) || !Array.isArray(text.m)) throw new Error('text file does not match');
+				D.desc = text.d; D.media = text.m; D.mediaPrefix = text.media_prefix || '';
+				setTextStatus('');
+				onTextReady();
+			} catch (err) {
+				console.warn('Could not load descriptions:', err.message);
+				setTextStatus('Descriptions and photos could not be loaded.', 'warn');
+			}
+		}
+
+		// =====================================================================
+		// Selection (radius + keyword) and grouping
+		// =====================================================================
+		function rebuildSelection() {
+			const n = D.n;
+			if (!n) return;
+			const lat = D.lat, lng = D.lng, t = D.t;
+			const unlimited = S.radiusM < 0;
+			const cLat = S.center.lat, cLng = S.center.lng;
+			const kx = Math.cos(cLat * Math.PI / 180) * 111320; // meters per degree of longitude
+			const ky = 110574;                                   // meters per degree of latitude
+			const r2 = S.radiusM * S.radiusM;
+			let descLower = null;
+			if (S.keyword && D.desc) {
+				if (!D.descLower) D.descLower = D.desc.map((s) => s.toLowerCase());
+				descLower = D.descLower;
+			}
+			const kw = S.keyword;
+
+			const picked = [];
+			for (let i = 0; i < n; i++) {
+				if (!unlimited) {
+					const dx = (lng[i] - cLng) * kx, dy = (lat[i] - cLat) * ky;
+					if (dx * dx + dy * dy > r2) continue;
+				}
+				if (descLower && !descLower[i].includes(kw)) continue;
+				picked.push(i);
+			}
+			const m = picked.length;
+			const idx = Int32Array.from(picked);
+			const selT = new Float64Array(m);
+			for (let j = 0; j < m; j++) selT[j] = t[idx[j]];
+
+			const locs = [];
+			if (S.group) {
+				const byAddr = new Map();
+				for (let j = 0; j < m; j++) {
+					const i = idx[j];
+					const a = D.addr[i];
+					const hasAddr = D.addrs[a] !== '';
+					let loc = hasAddr ? byAddr.get(a) : undefined;
+					if (!loc) {
+						loc = { lat: lat[i], lng: lng[i], addr: hasAddr ? D.addrs[a] : coordLabel(lat[i], lng[i]), list: [] };
+						if (hasAddr) byAddr.set(a, loc);
+						locs.push(loc);
 					}
+					loc.list.push(i);
+				}
+			} else {
+				for (let j = 0; j < m; j++) {
+					const i = idx[j];
+					const a = D.addr[i];
+					locs.push({ lat: lat[i], lng: lng[i], addr: D.addrs[a] || coordLabel(lat[i], lng[i]), list: [i] });
+				}
+			}
+			for (const loc of locs) {
+				loc.idx = Int32Array.from(loc.list);
+				loc.t = Float64Array.from(loc.idx, (i) => t[i]);
+				loc.list = null;
+			}
+			sel = { idx, t: selT, locs };
+		}
+
+		// =====================================================================
+		// Map
+		// =====================================================================
+		let map, pointLayer, heatLayer, radiusCircle, centerDot, legend, layerControl;
+		let popup = null, popupLoc = null, popupCount = -1, popupBuiltAt = 0;
+
+		function makeBaseLayers() {
+			const osmAttr = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+			const esri = (path, opts) => L.tileLayer(
+				`https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`,
+				Object.assign({ maxZoom: 19, attribution: 'Tiles &copy; Esri' }, opts || {})
+			);
+			let light, dark;
+			if (CARTO_API_KEY) {
+				const cartoAttr = '&copy; <a href="https://carto.com/attributions">CARTO</a> ' + osmAttr;
+				const carto = (style) => L.tileLayer(
+					`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(CARTO_API_KEY)}`,
+					{ subdomains: 'abcd', maxZoom: 20, attribution: cartoAttr }
 				);
-				
-                // Initialize map with Canvas renderer preferred
-                map = L.map("map", {
-                    layers: [lightLayer],
-                    preferCanvas: true
-                }).setView([CENTER_LAT, CENTER_LNG], 16);
-
-                // Add layer control
-                const baseMaps = { "Light": lightLayer, "Dark": darkLayer, "B&W": bwLayer, "Satellite": satelliteLayer};
-                L.control.layers(baseMaps).addTo(map);
-
-                // Initialize layers
-                heatLayer = L.heatLayer([], { radius: 25, blur: 20, maxZoom: 17 });
-                markersLayer = L.layerGroup().addTo(map);
-
-                // Radius circle and center marker
-                radiusCircle = L.circle([CENTER_LAT, CENTER_LNG], {
-                    color: "#3388ff", fillColor: "#3388ff", fillOpacity: 0,
-                    radius: RADIUS_METERS, weight: 1.5
-                }).addTo(map);
-                centerMarker = L.marker([CENTER_LAT, CENTER_LNG])
-                    .bindPopup(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`)
-                    .addTo(map);
-
-                // *** Listener to clear popup state when any popup closes ***
-                map.on('popupclose', function(e) {
-                    openPopupLocationKey = null;
-                });
-
-                // *** FIX: Add listener for popupopen to attach image click handlers ***
-                map.on('popupopen', function (e) {
-                    if (e.popup && e.popup.getElement()) { // Check if popup and its element exist
-                        // Find images within the opened popup that have the specific class
-                        const images = e.popup.getElement().querySelectorAll('.popup-report-image');
-                        images.forEach(img => {
-                            // Prevent adding the listener multiple times if the popup re-opens
-                            if (!img.dataset.listenerAttached) {
-                                 img.addEventListener('click', function() {
-                                    // Read data attributes from the clicked image
-                                    const url = this.dataset.mediaUrl;
-                                    const desc = this.dataset.description;
-                                    const title = this.dataset.title;
-                                    // Call showFullSizeImage with the retrieved data
-                                    showFullSizeImage(url, desc, title);
-                                });
-                                // Mark that the listener has been attached to this image
-                                img.dataset.listenerAttached = 'true';
-                            }
-                        });
-                    }
-                });
-                // *** END FIX ***
-
-                // Add Legend initially if markers are shown
-                if (document.getElementById("toggleMarkers").checked) {
-                    addLegend();
-                }
-            }
-
-            function initializeUI() {
-                // --- Event Listeners with Debouncing ---
-                const debouncedProcessData = debounce(() => processData(csvData), 300);
-
-                // Map movement - Triggers processData -> visualizeDataAtDate
-                map.on("moveend", debounce(() => {
-                    const center = map.getCenter();
-                    CENTER_LAT = center.lat;
-                    CENTER_LNG = center.lng;
-                    radiusCircle.setLatLng([CENTER_LAT, CENTER_LNG]);
-                    centerMarker.setLatLng([CENTER_LAT, CENTER_LNG])
-                                .setPopupContent(`Center: ${CENTER_LAT.toFixed(5)}, ${CENTER_LNG.toFixed(5)}`);
-                    if (csvData.length > 0) {
-                        debouncedProcessData(); // Re-filter data for the new view
-                    }
-                }, 400));
-
-                // Radius Slider - Triggers processData -> visualizeDataAtDate
-                const radiusSlider = document.getElementById("radiusSlider");
-                const radiusValueSpan = document.getElementById("radiusValue");
-                radiusSlider.addEventListener("input", function (e) {
-                    RADIUS_MILES = parseFloat(e.target.value);
-                    if (RADIUS_MILES >= 3.1) {
-                        radiusValueSpan.textContent = "MAX";
-                        RADIUS_METERS = -1; // Special value for max radius (no filtering)
-                        radiusCircle.setStyle({ opacity: 0, fillOpacity: 0 });
-                    } else {
-                        radiusValueSpan.textContent = RADIUS_MILES.toFixed(2);
-                        RADIUS_METERS = RADIUS_MILES * 1609.34;
-                        radiusCircle.setRadius(RADIUS_METERS);
-                        radiusCircle.setStyle({ opacity: 0.8, fillOpacity: 0 });
-                    }
-                     if (csvData.length > 0) {
-                        debouncedProcessData(); // Re-filter data for the new radius
-                    }
-                });
-                radiusValueSpan.textContent = parseFloat(radiusSlider.value).toFixed(2);
-
-                // Keyword Filter - Triggers processData -> visualizeDataAtDate
-                const keywordInput = document.getElementById('keywordInput');
-                const clearFilterButton = document.getElementById('clearFilterButton');
-                keywordInput.addEventListener('keyup', () => {
-                    updateClearButtonState();
-                    debouncedProcessData(); // Re-filter data
-                });
-                clearFilterButton.addEventListener('click', () => {
-                    keywordInput.value = '';
-                    updateClearButtonState();
-                    processData(csvData); // Process immediately
-                });
-                updateClearButtonState();
-
-                // Address Search
-                document.getElementById("searchAddress").addEventListener("click", handleAddressSearch);
-                document.getElementById("addressInput").addEventListener("keypress", (e) => {
-                    if (e.key === "Enter") handleAddressSearch();
-                });
-
-                // View Toggles - Trigger visualizeDataAtDate directly
-                document.getElementById("toggleHeatmap").addEventListener("change", handleViewToggle);
-                document.getElementById("toggleMarkers").addEventListener("change", handleViewToggle);
-                // Grouping Toggle - Triggers processData -> visualizeDataAtDate
-                document.getElementById("toggleMarkerGrouping").addEventListener("change", () => processData(csvData)); // Re-filter/group data
-
-                // Base Layer Change (Dark Mode)
-                map.on("baselayerchange", function (event) {
-                    if (event.name === "Dark") {
-                        document.body.classList.add("dark-mode");
-                    } else {
-                        document.body.classList.remove("dark-mode");
-                    }
-                     // Reinitialize/update chart for color changes if data is loaded
-                     if (yearlyReportsChart && animationController && animationController.currentDate) {
-                         initializeYearlyChart(); // Re-init to get correct colors
-                         // Filter reports up to the current date for the chart update
-                         const reportsToDate = allReports.filter(report => report.date <= animationController.currentDate);
-                         updateYearlyChart(reportsToDate, animationController.currentDate);
-                     }
-                });
-
-                // --- Animation Controls ---
-                // Initialize AnimationController here, but setDateRange will be called in loadData
-                animationController = new AnimationController(map, {
-                    initialSpeed: 1, updateInterval: 50, dayTickInterval: 16, debug: false,
-                    onVisualize: visualizeDataAtDate, // Function to call for visualization
-                    onDateUpdate: (date) => { // Function to update UI on date change
-                        if (!animationController.startDate) return; // Guard against early calls
-                        document.getElementById("currentDate").textContent = date.format("MMM D, YYYY");
-                        // Update slider position based on days diff from the *global* start date
-                        document.getElementById("timeSlider").value = date.diff(startDate, "days");
-                    },
-                    onComplete: () => { // Function called when animation finishes
-                        document.getElementById("playButton").disabled = false;
-                        document.getElementById("pauseButton").disabled = true;
-                    },
-                });
-                // Attach event listeners for animation buttons
-                document.getElementById("playButton").addEventListener("click", () => { if (animationController.play()) { document.getElementById("playButton").disabled = true; document.getElementById("pauseButton").disabled = false; } });
-                document.getElementById("pauseButton").addEventListener("click", () => { if (animationController.pause()) { document.getElementById("playButton").disabled = false; document.getElementById("pauseButton").disabled = true; } });
-                document.getElementById("restartButton").addEventListener("click", () => { if (animationController.restart()) { document.getElementById("playButton").disabled = false; document.getElementById("pauseButton").disabled = true; } });
-                document.getElementById("timeSlider").addEventListener("input", (e) => {
-                    animationController.pause(); // Pause animation on manual slide
-                    document.getElementById("playButton").disabled = false;
-                    document.getElementById("pauseButton").disabled = true;
-                    const daysFromStart = parseInt(e.target.value);
-                    // Jump to date based on days from the *global* start date
-                    animationController.jumpToDate(moment(startDate).add(daysFromStart, "days"));
-                });
-                document.getElementById("speedControl").addEventListener("change", (e) => { animationController.setSpeed(parseFloat(e.target.value)); });
-
-                // Window Resize handler
-                window.addEventListener("resize", debounce(() => { map.invalidateSize(); if (yearlyReportsChart) { yearlyReportsChart.resize(); } }, 250));
-            }
-
-            function updateClearButtonState() {
-                document.getElementById('clearFilterButton').disabled = document.getElementById('keywordInput').value.trim() === '';
-            }
-
-            function handleViewToggle() {
-                const showMarkers = document.getElementById("toggleMarkers").checked;
-                const showHeatmap = document.getElementById("toggleHeatmap").checked;
-                // Toggle Marker Layer and Legend
-                if (showMarkers) {
-                    if (!map.hasLayer(markersLayer)) { map.addLayer(markersLayer); }
-                    if (!map.legend) { addLegend(); }
-                } else {
-                    if (map.hasLayer(markersLayer)) { map.removeLayer(markersLayer); }
-                    if (map.legend) { map.legend.remove(); map.legend = null; }
-                }
-                // Toggle Heatmap Layer
-                if (showHeatmap) {
-                    if (!map.hasLayer(heatLayer)) { map.addLayer(heatLayer); }
-                } else {
-                    if (map.hasLayer(heatLayer)) { map.removeLayer(heatLayer); }
-                }
-                // Re-visualize data based on current toggles
-                if (animationController && animationController.currentDate) { visualizeDataAtDate(animationController.currentDate); }
-                else if (csvData.length > 0 && startDate) { processData(csvData); } // Fallback if controller not ready
-            }
-
-            // --- Data Loading and Processing ---
-            function loadData() {
-                fetch("data/reports.json")
-                    .then((response) => { if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); } return response.json(); })
-                    .then((data) => {
-                        csvData = data; // Store raw data
-                        if (!Array.isArray(csvData)) { console.error("Loaded data is not an array:", csvData); alert("Error: Loaded data format is incorrect."); csvData = []; return; }
-
-                        // --- Calculate Global Date Range FIRST ---
-                        console.time("calculateGlobalDateRange");
-                        let minDate = null;
-                        let maxDate = null;
-                        const allValidDates = [];
-
-                        csvData.forEach(row => {
-                            if (!row || typeof row !== 'object' || !row.requested_datetime) return;
-                            const date = moment(row.requested_datetime);
-                            if (date.isValid()) {
-                                allValidDates.push(date); // Collect all valid dates
-                            }
-                        });
-
-                        if (allValidDates.length > 0) {
-                            minDate = moment.min(allValidDates);
-                            maxDate = moment.max(allValidDates);
-
-                            // Set global start/end dates
-                            startDate = minDate.clone().startOf('day');
-                            endDate = maxDate.clone().endOf('day');
-                            currentDate = startDate.clone(); // Initialize current date
-
-                            console.log("Global Date Range:", startDate.format(), "-", endDate.format());
-
-                            // --- Initialize Slider and Animation Controller ---
-                            const slider = document.getElementById('timeSlider');
-                            slider.min = 0;
-                            slider.max = endDate.diff(startDate, 'days');
-                            slider.value = 0;
-                            document.getElementById('currentDate').textContent = startDate.format('MMM D, YYYY');
-                            document.getElementById('endDate').textContent = endDate.format('MMM D, YYYY');
-                            slider.disabled = false;
-
-                            // Set the date range in the already initialized controller
-                            if (animationController) {
-                                animationController.setDateRange(startDate, endDate, currentDate);
-                            } else {
-                                console.error("AnimationController not initialized before setting date range!");
-                            }
-
-                        } else {
-                            console.error("No valid dates found in the dataset.");
-                            alert("Error: Could not determine the date range from the data.");
-                            document.getElementById('timeSlider').disabled = true;
-                            // Handle error state - maybe disable controls?
-                        }
-                        console.timeEnd("calculateGlobalDateRange");
-
-                        // --- Now process data for the initial view ---
-                        if (startDate && endDate) { // Only process if range is valid
-                            processData(csvData);
-                        }
-
-                    })
-                    .catch((error) => { console.error("Error loading or parsing reports.json:", error); alert("Error loading needle report data."); });
-            }
-
-            function isWithinRadius(lat, lng) {
-                if (RADIUS_METERS === -1) return true; // Max radius means no filtering
-                if (isNaN(lat) || isNaN(lng) || isNaN(CENTER_LAT) || isNaN(CENTER_LNG)) return false;
-                try {
-                    const centerPoint = L.latLng(CENTER_LAT, CENTER_LNG);
-                    const reportPoint = L.latLng(lat, lng);
-                    return centerPoint.distanceTo(reportPoint) <= RADIUS_METERS;
-                } catch (e) { console.warn("Error calculating distance:", lat, lng, e); return false; }
-            }
-
-            // ProcessData now focuses ONLY on filtering/grouping for the current view
-            function processData(data) {
-                if (!Array.isArray(data) || !map || !startDate || !endDate) {
-                    console.warn("processData called before data/map/date range ready.");
-                    return;
-                }
-                console.time("processData (filtering)");
-
-                allReports = []; // Reset filtered reports
-                reportsByLocation.clear(); // Reset grouped reports
-                const keyword = document.getElementById('keywordInput').value.trim().toLowerCase();
-                const groupByAddress = document.getElementById('toggleMarkerGrouping').checked;
-                let uniqueCounter = 0; // For unique keys when grouping by coords
-
-                // Iterate through the FULL dataset (csvData)
-                data.forEach(row => {
-                    // Basic validation
-                    if (!row || typeof row !== 'object' || !row.lat || !row.long || !row.requested_datetime) return;
-
-                    const lat = parseFloat(row.lat);
-                    const lng = parseFloat(row.long);
-
-                    // --- Filter by Radius AND Keyword ---
-                    if (isNaN(lat) || isNaN(lng) || !isWithinRadius(lat, lng)) return; // Skip if outside radius
-                    if (keyword && !(row.description || '').toLowerCase().includes(keyword)) return; // Skip if keyword doesn't match
-
-                    // --- Process Valid Report ---
-                    const date = moment(row.requested_datetime);
-                    if (date.isValid()) {
-                        const report = { date: date, data: row };
-                        allReports.push(report); // Add to the list for heatmap/stats (filtered by radius/keyword)
-
-                        // --- Grouping Logic ---
-                        let locationKey;
-                        if (groupByAddress && row.address) {
-                            locationKey = row.address.trim().toLowerCase().replace(/\s+/g, ' ');
-                        } else {
-                            // Use coords + counter for uniqueness if no address or not grouping
-                            locationKey = `${lat.toFixed(5)},${lng.toFixed(5)}_${uniqueCounter++}`;
-                        }
-
-                        let locationData = reportsByLocation.get(locationKey);
-                        if (!locationData) {
-                            locationData = { lat: lat, lng: lng, address: row.address || `(${lat.toFixed(4)}, ${lng.toFixed(4)})`, reports: [] };
-                            reportsByLocation.set(locationKey, locationData);
-                        }
-                        locationData.reports.push(report); // Add reference to the report object
-                    }
-                });
-
-                // Sort the filtered reports (allReports) by date - useful for heatmap weighting later
-                allReports.sort((a, b) => a.date - b.date);
-
-                // --- Trigger Visualization ---
-                // Visualize based on the current date held by the animation controller
-                if (animationController && animationController.currentDate) {
-                    visualizeDataAtDate(animationController.currentDate);
-                } else if (startDate) {
-                    // Fallback if controller isn't ready, use the global start date
-                    visualizeDataAtDate(startDate);
-                }
-
-                // Ensure map resizes correctly after potential layout shifts
-                setTimeout(() => { if (map) map.invalidateSize(); }, 100);
-                console.timeEnd("processData (filtering)");
-            }
-
-
-            // --- Visualization ---
-            function addLegend() { /* ... (no changes needed in legend) ... */
-                if (map.legend) return; // Already exists
-
-                map.legend = L.control({ position: "bottomright" }); // Store legend instance on map object
-                map.legend.onAdd = function (map) {
-                    const div = L.DomUtil.create("div", "legend");
-                    // Simplified legend for circle markers
-                    div.innerHTML = `
-                        <h4>Legend</h4>
-							<div><i style="background:#e74c3c; width:8px; height:8px;"></i> Single Report</div>
-							<div><i style="background:#e74c3c; width:18px; height:18px;"></i> Multiple Reports</div>
-							<div><i style="background:#e74c3c; width:28px; height:28px;"></i> Many Reports</div>
-							<hr style="margin: 5px 0; border-top: 1px solid #ccc;">
-							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:1.0;"></i> Recent</div>
-							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.6;"></i> ~6 Months Old</div>
-							<div><i style="background:#e74c3c; width: 18px; height: 18px; opacity:0.2;"></i> 12+ Months Old</div>`;
-                    return div;
-                };
-                map.legend.addTo(map);
-            }
-
-
-            // VisualizeDataAtDate uses the pre-filtered `allReports` and `reportsByLocation`
-            function visualizeDataAtDate(targetDate) {
-                if (!map || !targetDate || !targetDate.isValid()) return;
-                console.time("visualizeDataAtDate");
-
-                // Store the key of the currently open popup before clearing
-                const previouslyOpenKey = openPopupLocationKey;
-                let markerForReopen = null; // Store the marker instance if we need to reopen its popup
-
-                markersLayer.clearLayers(); // Clear existing markers
-
-                let heatData = [];
-                let activeLocationCount = 0;
-                let recentReportCount = 0;
-                let totalReportCount = 0;
-                const showMarkers = document.getElementById("toggleMarkers").checked;
-                const showHeatmap = document.getElementById("toggleHeatmap").checked;
-                let openPopupMarkerFound = false; // Flag to track if the previously open marker is redrawn
-
-                // Filter the already geographically-filtered `allReports` list by date for heatmap and stats
-                const reportsToDate = allReports.filter(report => report.date <= targetDate);
-                totalReportCount = reportsToDate.length; // Total count *within the current view* up to targetDate
-
-                reportsToDate.forEach(report => {
-                    // Calculate recency based on the targetDate of the slider
-                    if (targetDate.diff(report.date, "days") <= 30) recentReportCount++;
-
-                    if (showHeatmap) {
-                        const lat = parseFloat(report.data.lat);
-                        const lng = parseFloat(report.data.long);
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            // Calculate weight based on how recent the report is relative to targetDate
-                            const daysDiff = targetDate.diff(report.date, "days", true);
-                            const weight = Math.max(0.1, 1 - daysDiff / 365); // Weight diminishes over a year
-                            heatData.push([lat, lng, weight]);
-                        }
-                    }
-                });
-
-                // Process grouped locations (already filtered by radius/keyword in processData) for Markers
-                if (showMarkers) {
-                    reportsByLocation.forEach((locationData, locationKey) => { // Get locationKey here
-                        // Filter reports *at this specific location* by the targetDate
-                        const relevantReportsForMarker = locationData.reports.filter(reportRef => reportRef.date <= targetDate);
-
-                        if (relevantReportsForMarker.length > 0) {
-                            activeLocationCount++; // Count locations active *within the view* up to targetDate
-
-                            // Determine appearance based on reports up to targetDate
-                            const newestDate = moment.max(relevantReportsForMarker.map(r => r.date));
-                            const monthsSinceNewest = newestDate ? targetDate.diff(newestDate, "months", true) : 13; // Default to > 12 if no date
-                            const opacityFactor = Math.max(0.2, 1 - monthsSinceNewest / 12); // Opacity fades over 12 months
-                            const radius = Math.min(60, Math.max(5, 5 + relevantReportsForMarker.length * 1.5)); // Size based on count
-
-                            const circle = L.circleMarker([locationData.lat, locationData.lng], {
-                                radius: radius, fillColor: "#e74c3c", color: "#c0392b",
-                                weight: 1, opacity: opacityFactor, fillOpacity: opacityFactor,
-                                locationKey: locationKey, // Store key in options for popup management
-								pane: 'markerPane' // Ensure markers are drawn on the correct pane
-                            });
-
-                            // Generate popup content based on reports relevant *up to this date*
-                            const detailContent = updateDetailedInfoPanel(locationData, relevantReportsForMarker, targetDate);
-
-                             // --- Popup Options (Persistent) ---
-                            const persistentPopupOptions = {
-                                autoPan: true, closeButton: true, autoClose: true,
-                                closeOnClick: false, // Keep open on map click
-                                closeOnMove: false   // Keep open on map move (important for animation)
-                            };
-
-                            // --- Check if this marker should have its popup reopened ---
-                            if (locationKey === previouslyOpenKey) {
-                                openPopupMarkerFound = true;
-                                markerForReopen = circle;
-                                // Bind the latest detail content when reopening
-                                circle.bindPopup(detailContent, persistentPopupOptions);
-                            } else {
-                                // For other markers, bind the detail content initially as well,
-                                // but don't open it automatically.
-                                circle.bindPopup(detailContent, persistentPopupOptions);
-                            }
-
-
-                            // --- Click Handler ---
-                            circle.on("click", function (e) {
-                                L.DomEvent.stopPropagation(e); // Prevent map click
-
-                                // Update state *before* opening
-                                openPopupLocationKey = this.options.locationKey;
-
-                                // Unbind, re-bind detailed content, and open
-                                // (Re-binding ensures it's the top popup if already open and content might have changed)
-                                this.unbindPopup();
-                                // Re-generate content just before opening to ensure it's fresh
-                                const freshDetailContent = updateDetailedInfoPanel(locationData, relevantReportsForMarker, targetDate);
-                                this.bindPopup(freshDetailContent, persistentPopupOptions);
-                                this.openPopup();
-                            });
-
-                             // --- Popup Open Handler (Simplified) ---
-                             circle.on('popupopen', function(e) {
-                                // When any popup opens, just track its key
-                                openPopupLocationKey = this.options.locationKey;
-                             });
-
-
-                            markersLayer.addLayer(circle);
-                        }
-                    });
-                }
-
-                // --- Reopen Popup if necessary ---
-                if (markerForReopen) {
-                    // Use setTimeout to ensure the marker is fully added to the layer before opening popup
-                    setTimeout(() => {
-                        if (markersLayer.hasLayer(markerForReopen)) {
-                             markerForReopen.openPopup();
-                        } else {
-                             // Marker might have disappeared due to date change before timeout
-                             openPopupLocationKey = null;
-                        }
-                    }, 0);
-                } else if (previouslyOpenKey && !openPopupMarkerFound) {
-                    // If the previously open marker was NOT found/redrawn in this frame, clear the state
-                    openPopupLocationKey = null;
-                }
-
-
-                // Update Heatmap Layer
-                if (showHeatmap) {
-                    heatLayer.setLatLngs(heatData);
-                }
-                // *** FIX: Removed the 'else' block that called setLatLngs([]) ***
-                // No need to clear heatmap data here; it's removed in handleViewToggle
-
-                // Update Statistics Display (reflects current view + date)
-                document.getElementById("totalReports").textContent = totalReportCount;
-                document.getElementById("activeLocations").textContent = activeLocationCount;
-                document.getElementById("recentReports").textContent = recentReportCount;
-
-                // Update Yearly Chart (uses reportsToDate which is filtered by view + date)
-                updateYearlyChart(reportsToDate, targetDate);
-
-                console.timeEnd("visualizeDataAtDate");
-            }
-
-
-            // Modified to accept the pre-filtered reports for the specific location up to targetDate
-            function updateDetailedInfoPanel(locationData, filteredReportsForLocation, targetDate) {
-                 // Sort reports newest first for display
-                filteredReportsForLocation.sort((a, b) => b.date - a.date);
-
-				if (filteredReportsForLocation.length === 0) return "No reports found for this date.";
-
-				const newestReport = filteredReportsForLocation[0];
-				const oldestReport = filteredReportsForLocation[filteredReportsForLocation.length - 1];
-
-				// Build the detailed report list HTML
-				let listHTML = filteredReportsForLocation.map(report => {
-					let itemHTML = `<div class="report-item">
-						<div><strong>${report.date.format("MMM D, YYYY h:mm A")}</strong></div>`; // Format date/time
-					if (report.data.description) {
-						const safeDescription = report.data.description.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Basic sanitization
-						itemHTML += `<div style="font-size: 0.9em; margin-top: 3px;">${safeDescription}</div>`;
-					}
-					if (report.data.media_url && report.data.media_url.trim() !== "") {
-                        // *** FIX: Use data attributes instead of inline onclick ***
-                        const mediaUrl = report.data.media_url || ""; // Use raw url
-                        const description = report.data.description || ""; // Use raw description
-                        const titleText = `${locationData.address} - ${report.date.format("MMM D, YYYY h:mm A")}`; // Use raw title
-
-                        itemHTML += `<div style="margin-top: 5px;">
-                           <img src="${mediaUrl}" alt="Report media" style="max-width:100%; max-height:150px; object-fit:contain; display:block; margin-top:5px; cursor:pointer; border-radius: 3px;"
-                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                            data-media-url="${mediaUrl.replace(/"/g, '&quot;')}"
-                            data-description="${description.replace(/"/g, '&quot;')}"
-                            data-title="${titleText.replace(/"/g, '&quot;')}"
-                            class="popup-report-image">
-                           <span style="display: none; font-size: 0.8em; color: #888;">(Image not available)</span>
-                         </div>`;
-                        // *** END FIX ***
-					}
-					itemHTML += `</div>`;
-					return itemHTML;
-				}).join('');
-
-				// Combine header and list
-				return `
-					<div style="max-height: 300px; overflow-y: auto; padding-right: 8px;">
-						<h4 style="margin:0 0 5px 0; font-size:1.1em;">${locationData.address}</h4>
-						<p style="font-size: 0.9em; margin: 0 0 8px 0; border-bottom: 1px solid #eee; padding-bottom: 5px;">
-							Total Reports at Location (to date): ${filteredReportsForLocation.length}<br>
-							<span style="color: #555;">Oldest: ${oldestReport.date.format("MMM D, YYYY")} | Newest: ${newestReport.date.format("MMM D, YYYY")}</span>
-						</p>
-						${listHTML}
-					</div>`;
+				light = carto('light_all');
+				dark = carto('dark_all');
+			} else {
+				light = L.layerGroup([
+					esri('Canvas/World_Light_Gray_Base', { maxNativeZoom: 16 }),
+					esri('Canvas/World_Light_Gray_Reference', { maxNativeZoom: 16, attribution: '' })
+				]);
+				dark = L.layerGroup([
+					esri('Canvas/World_Dark_Gray_Base', { maxNativeZoom: 16 }),
+					esri('Canvas/World_Dark_Gray_Reference', { maxNativeZoom: 16, attribution: '' })
+				]);
+			}
+			const streets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: osmAttr });
+			const bw = L.tileLayer(`https://api.maptiler.com/maps/toner-v2/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`, {
+				maxZoom: 19,
+				attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener">MapTiler</a> ' + osmAttr
+			});
+			const satellite = esri('World_Imagery', { attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS, NOAA' });
+			return { 'Light': light, 'Dark': dark, 'Streets': streets, 'B&W': bw, 'Satellite': satellite };
+		}
+
+		// Canvas layer that draws one circle per location, sized by report count
+		// and faded by age, all in a single pass. Replaces thousands of Leaflet
+		// circleMarkers being recreated on every animation frame.
+		const PointLayer = L.Layer.extend({
+			options: { pane: 'pointsPane' },
+			initialize(options) { L.setOptions(this, options); this._hits = []; this._dpr = 1; },
+			onAdd(map) {
+				this._map = map;
+				const canvas = this._canvas = L.DomUtil.create('canvas', 'leaflet-layer needle-points');
+				const animated = map.options.zoomAnimation && L.Browser.any3d;
+				L.DomUtil.addClass(canvas, 'leaflet-zoom-' + (animated ? 'animated' : 'hide'));
+				this._ctx = canvas.getContext('2d');
+				this.getPane().appendChild(canvas);
+				map.on('moveend resize', this._reset, this);
+				if (animated) map.on('zoomanim', this._animateZoom, this);
+				this._reset();
+			},
+			onRemove(map) {
+				L.DomUtil.remove(this._canvas);
+				map.off('moveend resize', this._reset, this);
+				map.off('zoomanim', this._animateZoom, this);
+				this._hits.length = 0;
+			},
+			_reset() {
+				const map = this._map;
+				L.DomUtil.setPosition(this._canvas, map.containerPointToLayerPoint([0, 0]));
+				const size = map.getSize();
+				const dpr = Math.min(window.devicePixelRatio || 1, 3);
+				if (this._canvas.width !== size.x * dpr || this._canvas.height !== size.y * dpr) {
+					this._canvas.width = size.x * dpr;
+					this._canvas.height = size.y * dpr;
+					this._canvas.style.width = size.x + 'px';
+					this._canvas.style.height = size.y + 'px';
+				}
+				this._dpr = dpr;
+				this.draw(S.cur);
+			},
+			_animateZoom(e) {
+				const scale = this._map.getZoomScale(e.zoom);
+				const offset = this._map._latLngBoundsToNewLayerBounds(this._map.getBounds(), e.zoom, e.center).min;
+				L.DomUtil.setTransform(this._canvas, offset, scale);
+			},
+			// Draws the state at time `t`; returns the number of active locations.
+			draw(t) {
+				const map = this._map, ctx = this._ctx;
+				if (!map || !ctx) return 0;
+				const size = map.getSize(), W = size.x, H = size.y, dpr = this._dpr;
+				ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+				ctx.clearRect(0, 0, W, H);
+				const scale = 256 * Math.pow(2, map.getZoom());
+				const origin = map.getPixelOrigin(), panePos = map._getMapPanePos();
+				const ox = origin.x - panePos.x, oy = origin.y - panePos.y;
+				const hits = this._hits; hits.length = 0;
+				const buckets = new Array(11).fill(null);
+				const locs = sel.locs;
+				let active = 0;
+				for (let k = 0; k < locs.length; k++) {
+					const loc = locs[k], lt = loc.t;
+					if (lt[0] > t) continue;
+					const cnt = countUpTo(lt, lt.length, t);
+					active++;
+					const months = (t - lt[cnt - 1]) / MONTH;
+					const opacity = Math.max(0.2, 1 - months / 12);
+					const r = Math.min(60, Math.max(5, 5 + cnt * 1.5));
+					const x = (0.5 + loc.lng / 360) * scale - ox;
+					const s = Math.sin(loc.lat * Math.PI / 180);
+					const y = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * scale - oy;
+					if (x < -r || x > W + r || y < -r || y > H + r) continue;
+					const b = Math.round(opacity * 10);
+					let path = buckets[b];
+					if (!path) path = buckets[b] = new Path2D();
+					path.moveTo(x + r, y);
+					path.arc(x, y, r, 0, Math.PI * 2);
+					hits.push(x, y, r, k);
+				}
+				ctx.lineWidth = 1;
+				ctx.fillStyle = '#e74c3c';
+				ctx.strokeStyle = '#c0392b';
+				for (let b = 2; b <= 10; b++) {
+					const path = buckets[b];
+					if (!path) continue;
+					ctx.globalAlpha = b / 10;
+					ctx.fill(path);
+					ctx.stroke(path);
+				}
+				ctx.globalAlpha = 1;
+				return active;
+			},
+			// Smallest drawn circle under the container point, or null.
+			hitTest(p) {
+				const h = this._hits, pad = isTouch ? 14 : 6;
+				let best = -1, bestR = Infinity;
+				for (let i = 0; i < h.length; i += 4) {
+					const dx = p.x - h[i], dy = p.y - h[i + 1], r = h[i + 2];
+					if (dx * dx + dy * dy <= Math.max(r, pad) ** 2 && r < bestR) { bestR = r; best = h[i + 3]; }
+				}
+				return best >= 0 ? sel.locs[best] : null;
+			}
+		});
+
+		function initMap() {
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			const baseLayers = makeBaseLayers();
+			S.center = L.latLng(DEFAULT_CENTER);
+
+			map = L.map('map', {
+				center: DEFAULT_CENTER,
+				zoom: DEFAULT_ZOOM,
+				layers: [prefersDark ? baseLayers['Dark'] : baseLayers['Light']],
+				preferCanvas: true,
+				worldCopyJump: false
+			});
+			map.createPane('heatPane').style.zIndex = 410;
+			map.createPane('pointsPane').style.zIndex = 420;
+			layerControl = L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+			setTheme(prefersDark);
+			map.on('baselayerchange', (e) => setTheme(e.name === 'Dark'));
+
+			radiusCircle = L.circle(DEFAULT_CENTER, {
+				radius: S.radiusM, color: '#3388ff', weight: 1.5, opacity: 0.85, fillOpacity: 0, interactive: false
+			}).addTo(map);
+			centerDot = L.circleMarker(DEFAULT_CENTER, {
+				radius: 4, color: '#fff', weight: 2, fillColor: '#3388ff', fillOpacity: 1, interactive: false, pane: 'markerPane'
+			}).addTo(map);
+
+			// leaflet.heat parks its canvas in the overlay pane; keep it in our own
+			// pane while on the map so the markers always draw above the heat.
+			const HeatLayer = L.HeatLayer.extend({
+				onAdd(m) {
+					L.HeatLayer.prototype.onAdd.call(this, m);
+					m.getPane('heatPane').appendChild(this._canvas);
+				},
+				onRemove(m) {
+					m.getPanes().overlayPane.appendChild(this._canvas);
+					L.HeatLayer.prototype.onRemove.call(this, m);
+				}
+			});
+			heatLayer = new HeatLayer([], { radius: 25, blur: 20, maxZoom: 17 });
+			pointLayer = new PointLayer();
+			if (S.showMarkers) pointLayer.addTo(map);
+
+			legend = L.control({ position: 'bottomright' });
+			legend.onAdd = () => {
+				const div = L.DomUtil.create('div', 'legend');
+				div.innerHTML = `
+					<h4>Legend</h4>
+					<div><span class="sw" style="width:8px;height:8px;margin-left:4px;margin-right:12px"></span>Single report</div>
+					<div class="lg-full"><span class="sw"></span>Several reports</div>
+					<div><span class="sw" style="width:24px;height:24px;margin-left:-4px"></span>Many reports</div>
+					<hr class="lg-full">
+					<div><span class="sw" style="opacity:1"></span>Recent</div>
+					<div class="lg-full"><span class="sw" style="opacity:.6"></span>~6 months old</div>
+					<div><span class="sw" style="opacity:.2"></span>12+ months old</div>`;
+				return div;
+			};
+			if (S.showMarkers) legend.addTo(map);
+
+			// Keep the search circle centred on the map and refilter as the view moves.
+			map.on('moveend', () => {
+				const c = map.getCenter();
+				S.center = c;
+				radiusCircle.setLatLng(c);
+				centerDot.setLatLng(c);
+				if (D.n) {
+					if (S.radiusM >= 0) rebuildSelection();
+					requestRender();
+				}
+			});
+
+			// Clicking a circle opens its popup; clicking elsewhere closes it.
+			map.on('click', (e) => {
+				if (!S.showMarkers || !D.n) return;
+				const loc = pointLayer.hitTest(e.containerPoint);
+				if (loc) openLocationPopup(loc);
+			});
+			map.on('popupclose', (e) => { if (e.popup === popup) popupLoc = null; });
+
+			if (!isTouch) {
+				let pending = null, raf = 0;
+				map.on('mousemove', (e) => {
+					if (!S.showMarkers) return;
+					pending = e.containerPoint;
+					if (raf) return;
+					raf = requestAnimationFrame(() => {
+						raf = 0;
+						map.getContainer().style.cursor = pointLayer.hitTest(pending) ? 'pointer' : '';
+					});
+				});
+				map.on('dragstart mouseout', () => { map.getContainer().style.cursor = ''; });
 			}
 
+			// Photo lightbox for images inside popups.
+			document.addEventListener('click', (e) => {
+				const img = e.target.closest && e.target.closest('.report-item img[data-i]');
+				if (!img) return;
+				e.preventDefault();
+				e.stopPropagation();
+				openLightbox(parseInt(img.dataset.i, 10), img.dataset.addr || '');
+			});
+		}
 
-            function initializeYearlyChart() { /* ... (no changes needed) ... */
-                const chartCanvas = document.getElementById("yearlyChart");
-				if (!chartCanvas) {
-					console.error("Chart canvas element not found!");
-					return null;
-				}
-				if (yearlyReportsChart) {
-					yearlyReportsChart.destroy(); // Destroy existing chart if re-initializing
-				}
+		function setTheme(dark) {
+			document.body.classList.toggle('dark', dark);
+			const meta = document.querySelector('meta[name="theme-color"]');
+			if (meta) meta.content = dark ? '#222222' : '#f5f5f5';
+			applyChartTheme();
+		}
 
-                const isDarkMode = document.body.classList.contains('dark-mode');
-                const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-                const labelColor = isDarkMode ? '#ccc' : '#666';
-                const barColor = isDarkMode ? 'rgba(231, 76, 60, 0.6)' : 'rgba(231, 76, 60, 0.7)';
-                const barBorderColor = isDarkMode ? 'rgba(192, 57, 43, 0.8)' : 'rgba(192, 57, 43, 1)';
+		function setHeatVisible(on) {
+			if (on && !map.hasLayer(heatLayer)) heatLayer.addTo(map);
+			else if (!on && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+		}
+		function setMarkersVisible(on) {
+			if (on) {
+				if (!map.hasLayer(pointLayer)) pointLayer.addTo(map);
+				legend.addTo(map);
+			} else {
+				if (map.hasLayer(pointLayer)) map.removeLayer(pointLayer);
+				legend.remove();
+				if (popupLoc) { map.closePopup(popup); popupLoc = null; }
+				map.getContainer().style.cursor = '';
+			}
+		}
 
-				try {
-					yearlyReportsChart = new Chart(chartCanvas.getContext('2d'), {
-						type: "bar",
-						data: { labels: [], datasets: [{ label: "Number of Reports", data: [], backgroundColor: barColor, borderColor: barBorderColor, borderWidth: 1 }] },
-						options: {
-							responsive: true, maintainAspectRatio: false,
-							scales: {
-								y: { beginAtZero: true, title: { display: true, text: "Number of Reports", color: labelColor }, ticks: { precision: 0, color: labelColor }, grid: { color: gridColor } },
-								x: { title: { display: true, text: "Year", color: labelColor }, ticks: { color: labelColor }, grid: { display: false } }
-							},
-							plugins: {
-								legend: { display: false },
-								tooltip: {
-                                    backgroundColor: isDarkMode ? '#222' : '#fff', titleColor: isDarkMode ? '#eee' : '#333', bodyColor: isDarkMode ? '#ddd' : '#555',
-                                    borderColor: gridColor, borderWidth: 1,
-									callbacks: { title: (tooltipItems) => "Year: " + tooltipItems[0].label, label: (context) => "Reports: " + context.raw }
-								}
-							},
-							animation: { duration: 0 } // Disable initial animation, controlled later
+		// =====================================================================
+		// Rendering
+		// =====================================================================
+		let renderQueued = false;
+		function requestRender() {
+			if (renderQueued) return;
+			renderQueued = true;
+			requestAnimationFrame(() => { renderQueued = false; render(); });
+		}
+
+		function render() {
+			if (!D.n) return;
+			const t = S.cur;
+			const total = countUpTo(sel.t, sel.t.length, t);
+			const recent = total - countUpTo(sel.t, sel.t.length, t - 30 * DAY);
+			let active = 0;
+			if (S.showMarkers && map.hasLayer(pointLayer)) {
+				active = pointLayer.draw(t);
+			} else {
+				for (const loc of sel.locs) if (loc.t[0] <= t) active++;
+			}
+			if (S.showHeat) updateHeat(t);
+			$('totalReports').textContent = fmtInt.format(total);
+			$('activeLocations').textContent = fmtInt.format(active);
+			$('recentReports').textContent = fmtInt.format(recent);
+			updateDateUI(t);
+			scheduleChart(t);
+			refreshPopup(t);
+		}
+
+		function updateHeat(t) {
+			const b = map.getBounds().pad(0.2);
+			const south = b.getSouth(), north = b.getNorth(), west = b.getWest(), east = b.getEast();
+			const m = countUpTo(sel.t, sel.t.length, t);
+			const pts = [];
+			for (let j = 0; j < m; j++) {
+				const i = sel.idx[j];
+				const la = D.lat[i], lo = D.lng[i];
+				if (la < south || la > north || lo < west || lo > east) continue;
+				const days = (t - sel.t[j]) / DAY;
+				pts.push([la, lo, Math.max(0.1, 1 - days / 365)]);
+			}
+			heatLayer.setLatLngs(pts);
+		}
+
+		let sliderDragging = false;
+		function updateDateUI(t) {
+			$('currentDate').textContent = fmtDate.format(t);
+			if (!sliderDragging) $('timeSlider').value = Math.floor((t - D.tMin) / DAY);
+		}
+
+		// ---------- Popups ----------
+		function openLocationPopup(loc) {
+			if (!popup) {
+				popup = L.popup({ className: 'needle-popup', maxWidth: 300, minWidth: 230, autoPan: true, closeOnClick: true, autoClose: true });
+			}
+			popupLoc = loc;
+			popup.options.autoPan = true;
+			popup.setLatLng([loc.lat, loc.lng]).setContent(buildPopupContent(loc, S.cur)).openOn(map);
+			popupCount = countUpTo(loc.t, loc.t.length, S.cur);
+			popupBuiltAt = performance.now();
+			// Content refreshes during playback should not drag the map around.
+			popup.options.autoPan = false;
+		}
+
+		function refreshPopup(t, force) {
+			if (!popupLoc || !popup || !map.hasLayer(popup)) return;
+			const cnt = countUpTo(popupLoc.t, popupLoc.t.length, t);
+			if (cnt === 0) { map.closePopup(popup); popupLoc = null; return; }
+			if (!force && cnt === popupCount) return;
+			const now = performance.now();
+			if (!force && S.playing && now - popupBuiltAt < 300) return;
+			popup.setContent(buildPopupContent(popupLoc, t));
+			popupCount = cnt;
+			popupBuiltAt = now;
+		}
+
+		function buildPopupContent(loc, t) {
+			const cnt = countUpTo(loc.t, loc.t.length, t);
+			if (!cnt) return '<p>No reports at this location yet.</p>';
+			const addrAttr = escapeHtml(loc.addr);
+			let items = '';
+			for (let j = cnt - 1, shown = 0; j >= 0 && shown < POPUP_ITEM_LIMIT; j--, shown++) {
+				const i = loc.idx[j];
+				const desc = D.desc ? D.desc[i] : null;
+				const url = mediaUrl(i);
+				items += `<div class="report-item"><strong>${fmtDateTime.format(loc.t[j])}</strong>`;
+				if (desc) items += `<div class="desc">${escapeHtml(desc)}</div>`;
+				else if (!D.desc) items += '<div class="desc muted">Loading details…</div>';
+				if (url) items += `<img src="${escapeHtml(url)}" loading="lazy" alt="Report photo" data-i="${i}" data-addr="${addrAttr}" onerror="this.remove()">`;
+				items += '</div>';
+			}
+			const more = cnt > POPUP_ITEM_LIMIT ? `<p class="muted">…and ${fmtInt.format(cnt - POPUP_ITEM_LIMIT)} older report${cnt - POPUP_ITEM_LIMIT === 1 ? '' : 's'} not shown.</p>` : '';
+			return `<div class="popup-body">
+				<h4>${addrAttr}</h4>
+				<p class="meta">${fmtInt.format(cnt)} report${cnt === 1 ? '' : 's'} to date<br>
+					<span class="muted">Oldest: ${fmtDate.format(loc.t[0])} &middot; Newest: ${fmtDate.format(loc.t[cnt - 1])}</span></p>
+				${items}${more}</div>`;
+		}
+
+		// ---------- Lightbox ----------
+		function openLightbox(i, addr) {
+			const url = mediaUrl(i);
+			if (!url) return;
+			$('lbTitle').textContent = `${addr || D.addrs[D.addr[i]] || ''} — ${fmtDateTime.format(D.t[i])}`;
+			$('lbCaption').textContent = D.desc ? D.desc[i] : '';
+			const img = $('lbImg');
+			img.alt = 'Report photo';
+			img.src = url;
+			$('lightbox').hidden = false;
+			$('lbClose').focus();
+		}
+		function closeLightbox() {
+			const lb = $('lightbox');
+			if (lb.hidden) return;
+			lb.hidden = true;
+			$('lbImg').removeAttribute('src');
+		}
+
+		// ---------- Chart ----------
+		let chart = null, chartTimer = 0, chartPendingT = 0;
+		function scheduleChart(t) {
+			chartPendingT = t;
+			if (chartTimer) return;
+			chartTimer = setTimeout(() => { chartTimer = 0; updateChart(chartPendingT); }, S.playing ? 250 : 0);
+		}
+		function chartColors() {
+			const dark = document.body.classList.contains('dark');
+			return {
+				grid: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+				label: dark ? '#c8c8c8' : '#666',
+				bar: dark ? 'rgba(231,76,60,0.7)' : 'rgba(231,76,60,0.75)',
+				border: dark ? 'rgba(231,76,60,0.95)' : 'rgba(192,57,43,1)',
+				tipBg: dark ? '#222' : '#fff',
+				tipFg: dark ? '#eee' : '#333'
+			};
+		}
+		function makeChart() {
+			const c = chartColors();
+			return new Chart($('yearlyChart').getContext('2d'), {
+				type: 'bar',
+				data: { labels: [], datasets: [{ label: 'Reports', data: [], backgroundColor: c.bar, borderColor: c.border, borderWidth: 1 }] },
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					animation: false,
+					scales: {
+						y: { beginAtZero: true, ticks: { precision: 0, color: c.label }, grid: { color: c.grid } },
+						x: { ticks: { color: c.label, autoSkip: true, maxRotation: 0 }, grid: { display: false } }
+					},
+					plugins: {
+						legend: { display: false },
+						tooltip: {
+							backgroundColor: c.tipBg, titleColor: c.tipFg, bodyColor: c.tipFg, borderColor: c.grid, borderWidth: 1,
+							callbacks: { label: (ctx) => ' ' + fmtInt.format(ctx.raw) + ' reports' }
 						}
-					});
-					return yearlyReportsChart;
-				} catch (error) {
-					console.error("Error initializing chart:", error);
-					return null;
+					}
 				}
-            }
+			});
+		}
+		function applyChartTheme() {
+			if (!chart) return;
+			const c = chartColors();
+			chart.data.datasets[0].backgroundColor = c.bar;
+			chart.data.datasets[0].borderColor = c.border;
+			chart.options.scales.y.ticks.color = c.label;
+			chart.options.scales.y.grid.color = c.grid;
+			chart.options.scales.x.ticks.color = c.label;
+			chart.options.plugins.tooltip.backgroundColor = c.tipBg;
+			chart.options.plugins.tooltip.titleColor = c.tipFg;
+			chart.options.plugins.tooltip.bodyColor = c.tipFg;
+			chart.update('none');
+		}
+		function updateChart(t) {
+			if (!D.n) return;
+			if (!chart) chart = makeChart();
+			const y0 = new Date(D.tMin).getFullYear(), y1 = new Date(t).getFullYear();
+			const labels = [], counts = [];
+			for (let y = y0; y <= y1; y++) {
+				const a = new Date(y, 0, 1).getTime();
+				const b = Math.min(t, new Date(y + 1, 0, 1).getTime() - 1);
+				labels.push(String(y));
+				counts.push(countUpTo(sel.t, sel.t.length, b) - countUpTo(sel.t, sel.t.length, a - 1));
+			}
+			chart.data.labels = labels;
+			chart.data.datasets[0].data = counts;
+			chart.update('none');
+		}
 
-            // UpdateYearlyChart now uses the `reportsToDate` which are already filtered by view+date
-            function updateYearlyChart(reportsToDate, targetDate) { /* ... (no changes needed) ... */
-                if (!reportsToDate || !targetDate || !targetDate.isValid()) {
-                    if (yearlyReportsChart) { // Clear chart if no data or invalid date
-                         yearlyReportsChart.data.labels = [];
-                         yearlyReportsChart.data.datasets[0].data = [];
-                         yearlyReportsChart.update('none'); // Use 'none' to avoid animation
-                    }
+		// =====================================================================
+		// Playback
+		// =====================================================================
+		let rafId = 0, lastTick = 0, lastDraw = 0;
+		function play() {
+			if (S.playing || !D.n) return;
+			if (S.cur >= D.tMax) S.cur = D.tMin;
+			S.playing = true;
+			setPlayState();
+			lastTick = performance.now();
+			lastDraw = 0;
+			rafId = requestAnimationFrame(tick);
+		}
+		function tick(now) {
+			if (!S.playing) return;
+			const dt = Math.min(now - lastTick, 250); // ignore long gaps (background tab)
+			lastTick = now;
+			S.cur += (dt / 1000) * S.speed * DAY;
+			let done = false;
+			if (S.cur >= D.tMax) { S.cur = D.tMax; done = true; }
+			if (done || now - lastDraw >= 45) { lastDraw = now; render(); }
+			else updateDateUI(S.cur);
+			if (done) { pause(); return; }
+			rafId = requestAnimationFrame(tick);
+		}
+		function pause() {
+			if (!S.playing) return;
+			S.playing = false;
+			cancelAnimationFrame(rafId);
+			setPlayState();
+			render();
+		}
+		function restart() {
+			pause();
+			S.cur = D.tMin;
+			render();
+		}
+		function setPlayState() {
+			$('playBtn').disabled = S.playing || !D.n;
+			$('pauseBtn').disabled = !S.playing;
+			$('restartBtn').disabled = !D.n;
+			document.body.classList.toggle('playing', S.playing);
+		}
+
+		// =====================================================================
+		// UI wiring
+		// =====================================================================
+		function setLoading(text, isError) {
+			const el = $('loading');
+			el.hidden = false;
+			el.classList.toggle('error', !!isError);
+			$('loadingText').textContent = text;
+		}
+		function hideLoading() { $('loading').hidden = true; }
+		function setTextStatus(text, kind) {
+			const el = $('textStatus');
+			el.textContent = text;
+			el.className = 'status' + (kind ? ' ' + kind : '');
+		}
+		function setGeocodeStatus(text, kind) {
+			const el = $('geocodeStatus');
+			el.textContent = text;
+			el.className = 'status' + (kind ? ' ' + kind : '');
+		}
+
+		function onCoreReady() {
+			const slider = $('timeSlider');
+			slider.min = 0;
+			slider.max = Math.ceil((D.tMax - D.tMin) / DAY);
+			slider.disabled = false;
+			$('endDate').textContent = fmtDate.format(D.tMax);
+			S.cur = D.tMax; // start by showing everything to date
+			rebuildSelection();
+			render();
+			setPlayState();
+			hideLoading();
+		}
+
+		function onTextReady() {
+			if (S.keyword) { rebuildSelection(); render(); }
+			else if (popupLoc) refreshPopup(S.cur, true);
+		}
+
+		function initUI() {
+			// Address search
+			$('searchForm').addEventListener('submit', (e) => {
+				e.preventDefault();
+				const q = $('addressInput').value.trim();
+				if (q) geocode(q);
+			});
+
+			// Radius
+			const radiusSlider = $('radiusSlider'), radiusValue = $('radiusValue');
+			const applyRadius = debounce(() => { if (D.n) { rebuildSelection(); requestRender(); } }, 60);
+			radiusSlider.addEventListener('input', () => {
+				const miles = parseFloat(radiusSlider.value);
+				if (miles >= 3.1) {
+					radiusValue.value = 'MAX';
+					S.radiusM = -1;
+					radiusCircle.setStyle({ opacity: 0 });
+				} else {
+					radiusValue.value = miles.toFixed(2);
+					S.radiusM = miles * METERS_PER_MILE;
+					radiusCircle.setRadius(S.radiusM);
+					radiusCircle.setStyle({ opacity: 0.85 });
+				}
+				applyRadius();
+			});
+
+			// Layer toggles
+			$('toggleHeatmap').addEventListener('change', (e) => {
+				S.showHeat = e.target.checked;
+				setHeatVisible(S.showHeat);
+				requestRender();
+			});
+			$('toggleMarkers').addEventListener('change', (e) => {
+				S.showMarkers = e.target.checked;
+				setMarkersVisible(S.showMarkers);
+				requestRender();
+			});
+			$('toggleGrouping').addEventListener('change', (e) => {
+				S.group = e.target.checked;
+				if (popupLoc) { map.closePopup(popup); popupLoc = null; }
+				if (D.n) { rebuildSelection(); requestRender(); }
+			});
+
+			// Keyword filter
+			const keywordInput = $('keywordInput'), clearFilter = $('clearFilter');
+			const applyKeyword = debounce(() => {
+				S.keyword = keywordInput.value.trim().toLowerCase();
+				clearFilter.disabled = !S.keyword;
+				if (S.keyword && !D.desc) setTextStatus('Descriptions are still loading; the filter will apply once they arrive.');
+				if (D.n) { rebuildSelection(); requestRender(); }
+			}, 250);
+			keywordInput.addEventListener('input', applyKeyword);
+			clearFilter.addEventListener('click', () => { keywordInput.value = ''; applyKeyword(); keywordInput.focus(); });
+
+			// Playback
+			$('playBtn').addEventListener('click', play);
+			$('pauseBtn').addEventListener('click', pause);
+			$('restartBtn').addEventListener('click', restart);
+			$('speedSelect').addEventListener('change', (e) => { S.speed = parseFloat(e.target.value) || 1; });
+			S.speed = parseFloat($('speedSelect').value) || 25;
+
+			const slider = $('timeSlider');
+			const onSlide = () => {
+				pause();
+				S.cur = Math.min(D.tMax, D.tMin + parseInt(slider.value, 10) * DAY);
+				requestRender();
+			};
+			slider.addEventListener('pointerdown', () => { sliderDragging = true; });
+			slider.addEventListener('input', onSlide);
+			slider.addEventListener('change', () => { sliderDragging = false; onSlide(); });
+			window.addEventListener('pointerup', () => { sliderDragging = false; });
+
+			// Keyboard: space toggles playback when not typing in a field.
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') { closeLightbox(); return; }
+				const tag = (e.target.tagName || '').toLowerCase();
+				if (e.key === ' ' && tag !== 'input' && tag !== 'select' && tag !== 'textarea' && tag !== 'button') {
+					e.preventDefault();
+					if (S.playing) pause(); else play();
+				}
+			});
+
+			// Lightbox
+			$('lbClose').addEventListener('click', closeLightbox);
+			$('lightbox').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeLightbox(); });
+
+			// Resize
+			window.addEventListener('resize', debounce(() => { map.invalidateSize(); if (chart) chart.resize(); }, 200));
+
+			// Last updated
+			const lu = $('lastUpdate');
+			const d = LAST_UPDATED ? new Date(LAST_UPDATED) : null;
+			lu.textContent = d && !isNaN(d) ? 'Data last updated: ' + fmtDateTime.format(d) : 'Data last updated: unavailable';
+		}
+
+		// ---------- Geocoding ----------
+		const LOCAL_PLACES = {
+			'mission hill': [42.331, -71.105, 'Mission Hill'], 'roxbury': [42.328, -71.090, 'Roxbury'],
+			'jamaica plain': [42.310, -71.115, 'Jamaica Plain'], 'fenway': [42.345, -71.100, 'Fenway'],
+			'boston common': [42.355, -71.066, 'Boston Common'], 'dorchester': [42.300, -71.065, 'Dorchester'],
+			'south boston': [42.338, -71.040, 'South Boston'], 'south end': [42.340, -71.075, 'South End'],
+			'back bay': [42.350, -71.080, 'Back Bay'], 'downtown': [42.358, -71.060, 'Downtown Boston'],
+			'mass ave': [42.3418, -71.1021, 'Mass Ave'], 'melnea cass': [42.331, -71.075, 'Melnea Cass Blvd'],
+			'south huntington': [42.3238, -71.1113, 'South Huntington Ave'], 'mass and cass': [42.3330, -71.0745, 'Mass and Cass'],
+			'charlestown': [42.378, -71.062, 'Charlestown'], 'east boston': [42.375, -71.039, 'East Boston'],
+			'allston': [42.353, -71.132, 'Allston'], 'brighton': [42.350, -71.157, 'Brighton'],
+			'hyde park': [42.256, -71.124, 'Hyde Park'], 'roslindale': [42.287, -71.127, 'Roslindale'],
+			'mattapan': [42.277, -71.092, 'Mattapan'], 'west roxbury': [42.280, -71.160, 'West Roxbury'],
+			'north end': [42.365, -71.054, 'North End'], 'chinatown': [42.351, -71.062, 'Chinatown']
+		};
+		async function geocode(query) {
+			setGeocodeStatus('Searching…');
+			let q = query;
+			if (!/boston/i.test(q) && !/\bma\b/i.test(q)) q += ', Boston, MA';
+			const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&bounded=1&viewbox=-71.2,42.4,-70.9,42.2&q=' + encodeURIComponent(q);
+			try {
+				const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				const data = await res.json();
+				if (Array.isArray(data) && data.length) {
+					const r = data[0];
+					goTo(parseFloat(r.lat), parseFloat(r.lon), r.display_name);
 					return;
 				}
+			} catch (err) {
+				console.warn('Geocoding failed:', err.message);
+			}
+			const clean = query.toLowerCase();
+			for (const [key, [lat, lng, name]] of Object.entries(LOCAL_PLACES)) {
+				if (clean.includes(key)) { goTo(lat, lng, name + ', Boston, MA (approximate)'); return; }
+			}
+			setGeocodeStatus('Address not found.', 'err');
+		}
+		function goTo(lat, lng, label) {
+			const short = label.length > 70 ? label.slice(0, 67) + '…' : label;
+			setGeocodeStatus('Found: ' + short, 'ok');
+			map.setView([lat, lng], Math.max(map.getZoom(), 15)); // moveend handler refilters
+		}
 
-                // Check if reportsToDate is actually an array before proceeding
-                if (!Array.isArray(reportsToDate)) {
-                    console.error("updateYearlyChart received non-array:", reportsToDate);
-                    if (yearlyReportsChart) { // Clear chart on error
-                         yearlyReportsChart.data.labels = [];
-                         yearlyReportsChart.data.datasets[0].data = [];
-                         yearlyReportsChart.update('none');
-                    }
-                    return;
-                }
-
-				// Aggregate counts by year (using the already filtered list)
-				const yearCounts = {};
-				reportsToDate.forEach(report => {
-                    // Double-check report structure and date validity
-                    if (report && report.date && report.date.isValid()) {
-                        const year = report.date.year();
-					    yearCounts[year] = (yearCounts[year] || 0) + 1;
-                    } else {
-                        // console.warn("Skipping invalid report/date in chart aggregation:", report);
-                    }
-				});
-
-				const years = Object.keys(yearCounts).map(Number).sort((a, b) => a - b);
-				const counts = years.map(year => yearCounts[year]);
-
-				if (!yearlyReportsChart) {
-					yearlyReportsChart = initializeYearlyChart(); // Initialize if not already done
-                    if (!yearlyReportsChart) return; // Exit if initialization failed
-				}
-
-				yearlyReportsChart.data.labels = years;
-				yearlyReportsChart.data.datasets[0].data = counts;
-
-                // Control animation: disable during playback for performance
-				const isAnimating = animationController && animationController.isPlaying;
-				yearlyReportsChart.options.animation.duration = isAnimating ? 0 : 400; // Faster update when not animating
-
-                // Update chart colors based on current mode (important if mode changed)
-                const isDarkMode = document.body.classList.contains('dark-mode');
-                const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-                const labelColor = isDarkMode ? '#ccc' : '#666';
-                yearlyReportsChart.options.scales.y.title.color = labelColor;
-                yearlyReportsChart.options.scales.y.ticks.color = labelColor;
-                yearlyReportsChart.options.scales.y.grid.color = gridColor;
-                yearlyReportsChart.options.scales.x.title.color = labelColor;
-                yearlyReportsChart.options.scales.x.ticks.color = labelColor;
-                yearlyReportsChart.options.plugins.tooltip.backgroundColor = isDarkMode ? '#222' : '#fff';
-                yearlyReportsChart.options.plugins.tooltip.titleColor = isDarkMode ? '#eee' : '#333';
-                yearlyReportsChart.options.plugins.tooltip.bodyColor = isDarkMode ? '#ddd' : '#555';
-                // Also update bar colors if needed (though usually set at init)
-                // yearlyReportsChart.data.datasets[0].backgroundColor = isDarkMode ? 'rgba(231, 76, 60, 0.6)' : 'rgba(231, 76, 60, 0.7)';
-                // yearlyReportsChart.data.datasets[0].borderColor = isDarkMode ? 'rgba(192, 57, 43, 0.8)' : 'rgba(192, 57, 43, 1)';
-
-
-				yearlyReportsChart.update(isAnimating ? 'none' : 'default'); // Use 'none' for no animation during playback
-            }
-
-            // --- Geocoding ---
-             function handleAddressSearch() { /* ... (no changes needed) ... */
-                 const address = document.getElementById("addressInput").value.trim();
-                if (address) {
-                    geocodeAddress(address);
-                }
-             }
-
-            function geocodeAddress(address) { /* ... (no changes needed) ... */
-                const statusElement = document.getElementById("geocodeStatus");
-				statusElement.textContent = "Searching...";
-				statusElement.style.color = "#666";
-
-				let searchQuery = address;
-				// Append Boston, MA if not present for better Nominatim results
-				if (!/boston/i.test(searchQuery) && !/\bma\b/i.test(searchQuery)) {
-					searchQuery += ", Boston, MA";
-				}
-
-				// Use Nominatim API for geocoding
-				const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=jsonv2&addressdetails=1&limit=1&countrycodes=us&viewbox=-71.2,42.4,-70.9,42.2&bounded=1`; // Added viewbox/bounded for Boston focus
-
-				fetch(nominatimUrl, { headers: { "User-Agent": "Boston311Viz/1.0 (github.com/jparkerogrady/boston-needle-viz)" } }) // Added User-Agent
-					.then(response => {
-						if (!response.ok) throw new Error(`Network error: ${response.status}`);
-						return response.json();
-					})
-					.then(data => {
-						if (data && data.length > 0) {
-							const result = data[0];
-							updateMapLocation( parseFloat(result.lat), parseFloat(result.lon), result.display_name, statusElement );
-						} else {
-							// If Nominatim fails, try local lookup
-							checkLocalDatabase(address, statusElement);
-						}
-					})
-					.catch(error => {
-						console.error("Nominatim Geocoding error:", error);
-                        statusElement.textContent = "Geocoding failed. Trying local...";
-                        statusElement.style.color = "orange";
-						checkLocalDatabase(address, statusElement); // Fallback to local lookup
-					});
-            }
-
-            function checkLocalDatabase(address, statusElement) { /* ... (no changes needed) ... */
-                 // Simple local lookup for common neighborhoods/landmarks
-                 const localMatches = {
-                    "mission hill": { lat: 42.331, lng: -71.105, name: "Mission Hill" }, "roxbury": { lat: 42.328, lng: -71.090, name: "Roxbury" },
-                    "jamaica plain": { lat: 42.310, lng: -71.115, name: "Jamaica Plain" }, "fenway": { lat: 42.345, lng: -71.100, name: "Fenway" },
-                    "boston common": { lat: 42.355, lng: -71.066, name: "Boston Common" }, "dorchester": { lat: 42.300, lng: -71.065, name: "Dorchester" },
-                    "south boston": { lat: 42.338, lng: -71.040, name: "South Boston" }, "south end": { lat: 42.340, lng: -71.075, name: "South End" },
-                    "back bay": { lat: 42.350, lng: -71.080, name: "Back Bay" }, "downtown": { lat: 42.358, lng: -71.060, name: "Downtown Boston" },
-                    "mass ave": { lat: 42.3418, lng: -71.1021, name: "Mass Ave Area" }, "melnea cass": { lat: 42.331, lng: -71.075, name: "Melnea Cass Blvd Area" },
-                    "south huntington": { lat: 42.3238, lng: -71.1113, name: "South Huntington Ave Area" },
-                 };
-                const cleanAddress = address.toLowerCase().trim();
-                for (const [key, location] of Object.entries(localMatches)) {
-                    if (cleanAddress.includes(key)) {
-                         updateMapLocation(location.lat, location.lng, `${location.name}, Boston, MA (Approx.)`, statusElement);
-                         return; // Found a local match
-                    }
-                }
-                // No match found locally either
-                statusElement.textContent = "Address not found.";
-                statusElement.style.color = "red";
-            }
-
-             function updateMapLocation(lat, lng, displayName, statusElement) { /* ... (no changes needed) ... */
-                 CENTER_LAT = lat; // Update global center coordinates
-                CENTER_LNG = lng;
-                let shortDisplayName = displayName.length > 60 ? displayName.substring(0, 57) + "..." : displayName; // Truncate long names
-                statusElement.textContent = `Found: ${shortDisplayName}`;
-                statusElement.style.color = "green";
-                map.setView([lat, lng], 16); // Center map on the found location
-                // Update radius circle and center marker position
-                radiusCircle.setLatLng([lat, lng]);
-                centerMarker.setLatLng([lat, lng]).setPopupContent(`Center: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-                // Re-process data for the new location (filters by new radius/center)
-                if (csvData.length > 0) { processData(csvData); }
-             }
-
-            // --- Image Popup ---
-            function showFullSizeImage(mediaUrl, description, titleText) { /* ... (no changes needed) ... */
-                // Remove existing overlay if present
-                const existingOverlay = document.getElementById("imageOverlay");
-				if (existingOverlay) { document.body.removeChild(existingOverlay); }
-
-                // Create overlay div
-				const overlay = document.createElement("div");
-				overlay.id = "imageOverlay";
-				Object.assign(overlay.style, { position: "fixed", top: '0', left: '0', width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: "10001", cursor: 'pointer' });
-
-                // Create container for image and text
-				const container = document.createElement("div");
-                const isDarkMode = document.body.classList.contains('dark-mode');
-				Object.assign(container.style, { position: "relative", backgroundColor: isDarkMode ? "#333" : "#fff", color: isDarkMode ? "#ddd" : "#333", padding: "20px", maxWidth: "90vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 4px 15px rgba(0,0,0,0.4)", borderRadius: "5px", cursor: 'default' });
-
-                // Add title
-				const titleEl = document.createElement("h2");
-				Object.assign(titleEl.style, { marginTop: "0", fontSize: "1.1em", marginBottom: "10px", borderBottom: `1px solid ${isDarkMode ? '#555' : '#ccc'}`, paddingBottom: '8px' });
-				titleEl.textContent = titleText || "Image";
-				container.appendChild(titleEl);
-
-                // Add image
-				const imgEl = document.createElement("img");
-				imgEl.src = mediaUrl;
-				Object.assign(imgEl.style, { maxWidth: "100%", maxHeight: "calc(80vh - 100px)", objectFit: "contain", display: "block", margin: "10px auto", borderRadius: "3px" });
-                imgEl.onerror = () => { imgEl.alt = "Image failed to load"; container.insertBefore(document.createTextNode("Image failed to load."), imgEl); imgEl.style.display = 'none'; }; // Handle image load error
-				container.appendChild(imgEl);
-
-                // Add description/caption if available
-				if (description) {
-					const captionEl = document.createElement("p");
-					Object.assign(captionEl.style, { fontSize: "0.9em", color: isDarkMode ? "#bbb" : "#555", marginTop: "10px", textAlign: 'center' });
-					captionEl.textContent = description;
-					container.appendChild(captionEl);
-				}
-
-                // Add close button
-				const closeButton = document.createElement("span");
-				closeButton.innerHTML = "&times;"; // 'x' symbol
-				Object.assign(closeButton.style, { position: "absolute", top: "10px", right: "15px", fontSize: "1.8em", cursor: "pointer", color: "#aaa", lineHeight: '1' });
-				container.appendChild(closeButton);
-
-				overlay.appendChild(container);
-				document.body.appendChild(overlay);
-
-                // Event listeners for closing the overlay
-				const removeOverlay = () => { if (document.body.contains(overlay)) { document.body.removeChild(overlay); document.removeEventListener('keydown', escapeKeyListener); } }; // Remove escape listener too
-				closeButton.addEventListener("click", removeOverlay);
-				overlay.addEventListener("click", (e) => { if (e.target === overlay) { removeOverlay(); } }); // Close on clicking background
-                container.addEventListener('click', (e) => e.stopPropagation()); // Prevent closing when clicking inside container
-                // Add Escape key listener
-                const escapeKeyListener = (e) => { if (e.key === "Escape") { removeOverlay(); } };
-                document.addEventListener('keydown', escapeKeyListener);
-            }
-
-
-            // --- Animation Controller Class ---
-            class AnimationController { /* ... (no changes needed) ... */
-                 constructor(map, options = {}) {
-                    this.map = map;
-                    this.updateInterval = options.updateInterval || 50; // How often to potentially redraw map (ms)
-                    this.dayTickInterval = options.dayTickInterval || 16; // How often to advance the date (ms) - tied to requestAnimationFrame
-                    this.isPlaying = false;
-                    this.startDate = null; this.endDate = null; this.currentDate = null;
-                    this.animationSpeed = options.initialSpeed || 1; // Multiplier for days/second
-                    this.visualUpdateTimer = null; // Timer for map redraws
-                    this.dayTickTimer = null;      // Timer for date advancement (using requestAnimationFrame)
-                    this.onVisualize = options.onVisualize || (() => {}); // Callback to draw map state
-                    this.onDateUpdate = options.onDateUpdate || (() => {}); // Callback to update UI date display
-                    this.onComplete = options.onComplete || (() => {});   // Callback when animation reaches end
-                    this.debug = options.debug || false;
-                    this.lastDayTick = 0; // Timestamp of the last date advancement tick
-                }
-                // Sets the date range and initial current date
-                setDateRange(startDate, endDate, currentDate = null) {
-                    if (!startDate || !endDate || !startDate.isValid() || !endDate.isValid()) { console.error("Invalid date range provided to AnimationController"); return this; }
-                    this.startDate = moment(startDate); this.endDate = moment(endDate);
-                    // Set current date, defaulting to start date if not provided or invalid
-                    this.currentDate = currentDate && currentDate.isValid() ? moment(currentDate) : moment(startDate);
-                    if (this.debug) console.log("AnimationController Dates set:", this.startDate.format(), this.endDate.format(), this.currentDate.format());
-                    this.updateDateDisplay(); // Update UI immediately
-                    this.visualize();         // Visualize initial state
-                    return this;
-                }
-                // Sets the animation speed multiplier
-                setSpeed(speed) { this.animationSpeed = Math.max(0.1, speed); if (this.debug) console.log("Animation Speed:", this.animationSpeed); return this; }
-                // Jumps the animation to a specific date
-                jumpToDate(date) {
-                     if (!this.startDate || !this.endDate) return this; // Need range set first
-                     const newDate = moment(date); if (!newDate.isValid()) return this; // Ignore invalid dates
-                    // Clamp date within the allowed range
-                    if (newDate < this.startDate) this.currentDate = moment(this.startDate);
-                    else if (newDate > this.endDate) this.currentDate = moment(this.endDate);
-                    else this.currentDate = newDate;
-                    if (this.debug) console.log("Jumped to:", this.currentDate.format());
-                    this.updateDateDisplay(); // Update UI
-                    this.visualize();         // Redraw map for the new date
-                    return this;
-                }
-                // Internal function to advance the current date based on elapsed time and speed
-                _advanceDayTick(elapsedMs) {
-                     if (!this.isPlaying || !this.currentDate || !this.endDate || !this.startDate) return;
-                     // Calculate how many days to advance based on speed and elapsed time
-                     const daysPerSecond = this.animationSpeed; // Speed is directly days/sec
-                     const daysToAdvance = (elapsedMs / 1000) * daysPerSecond;
-                     // Add the calculated time duration to the current date
-                     this.currentDate.add(daysToAdvance * 86400 * 1000, 'milliseconds'); // Advance using milliseconds for precision
-                     // Check if the end date has been reached or passed
-                     if (this.currentDate >= this.endDate) {
-                         this.currentDate = moment(this.endDate); // Clamp to exact end date
-                         this.pause(); // Stop the animation
-                         this.onComplete(); // Call completion callback
-                         if (this.debug) console.log("Animation Complete.");
-                     }
-                     this.updateDateDisplay(); // Update UI display
-                }
-                // Starts the animation playback
-                play() {
-                    if (this.isPlaying || !this.startDate || !this.endDate) return false; // Already playing or range not set
-                    // If already at the end, restart first
-                    if (this.currentDate >= this.endDate) { this.restart(); }
-                    this.isPlaying = true; document.body.classList.add("animation-active"); // Add body class for potential styling
-                    if (this.debug) console.log("Playing...");
-                    // Start interval timer for visualization updates
-                    this.visualUpdateTimer = setInterval(() => {
-                        // Only visualize if the tab is active/visible
-                        if (!document.hidden) { this.visualize(); }
-                    }, this.updateInterval);
-                    // Start the date advancement loop using requestAnimationFrame
-                    this.lastDayTick = performance.now(); // Record start time
-                    const tick = (now) => { // 'now' is provided by requestAnimationFrame
-                        if (!this.isPlaying) return; // Stop loop if paused
-                        const elapsed = now - this.lastDayTick; // Calculate time since last tick
-                        this.lastDayTick = now;
-                        // Only advance date if the tab is active/visible
-                        if (!document.hidden) { this._advanceDayTick(elapsed); }
-                        // Request the next frame
-                        this.dayTickTimer = requestAnimationFrame(tick);
-                    };
-                    this.dayTickTimer = requestAnimationFrame(tick); // Start the loop
-                    return true; // Indicate success
-                }
-                // Pauses the animation playback
-                pause() {
-                    if (!this.isPlaying) return false; // Already paused
-                    this.isPlaying = false; document.body.classList.remove("animation-active"); // Remove body class
-                    // Clear timers
-                    clearInterval(this.visualUpdateTimer); this.visualUpdateTimer = null;
-                    if (typeof cancelAnimationFrame === 'function') { cancelAnimationFrame(this.dayTickTimer); } this.dayTickTimer = null;
-                    if (this.debug) console.log("Paused.");
-                    this.visualize(); // Perform one final visualization update at the paused state
-                    return true; // Indicate success
-                }
-                // Resets the animation to the start date
-                restart() {
-                    if (!this.startDate) return false; // Range not set
-                    this.pause(); // Ensure animation is stopped
-                    this.jumpToDate(this.startDate); // Jump back to the beginning
-                    if (this.debug) console.log("Restarted.");
-                    return true; // Indicate success
-                }
-                // Triggers the visualization callback
-                visualize() {
-                    if (this.currentDate && this.currentDate.isValid()) {
-                        this.onVisualize(this.currentDate); // Call the provided visualization function
-                    }
-                    return this;
-                }
-                // Triggers the date display update callback
-                updateDateDisplay() {
-                    if (this.currentDate && this.currentDate.isValid()) {
-                        this.onDateUpdate(this.currentDate); // Call the provided UI update function
-                    }
-                    return this;
-                }
-            }
-
-		</script>
-	</body>
+		// =====================================================================
+		// Boot
+		// =====================================================================
+		try {
+			initMap();
+			initUI();
+			loadData().catch((err) => {
+				console.error(err);
+				setLoading('Could not load the report data. Please reload the page to try again.', true);
+			});
+		} catch (err) {
+			console.error(err);
+			setLoading('Something went wrong while starting the map: ' + err.message, true);
+		}
+	</script>
+</body>
 </html>

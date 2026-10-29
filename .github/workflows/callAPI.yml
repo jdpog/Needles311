@@ -27,6 +27,11 @@ jobs:
       - name: Run API Data Download Script
         run: python data/callAPI.py
 
+      - name: Build compact data files for the website
+        # The site loads reports.core.json / reports.text.json (much smaller than
+        # reports.json). If this step fails the site falls back to reports.json.
+        run: python data/compact.py || echo "::warning::compact.py failed; the site will fall back to reports.json"
+
       - name: Generate last update timestamp
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -42,7 +47,7 @@ jobs:
           git config --local user.name "GitHub Action"
           # Pull remote changes and rebase your changes on top.
           git pull --rebase --autostash
-          git add data/reports.json data/last_update.js
+          git add data/reports.json data/last_update.js data/reports.core.json data/reports.text.json
           if ! git diff --cached --quiet; then
             git commit -m "Update reports.json & timestamp"
             git push
