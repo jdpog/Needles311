@@ -17,7 +17,7 @@ Pushes to `main` deploy to surge (`deploy.yml`) and GitHub Pages (`pages_deploy.
 
 ## Base maps
 
-CARTO's Positron / Dark Matter tiles require an API key since September 2026. The page ships without one and uses Esri's gray canvas for the Light and Dark layers instead (crisp up to zoom 16). To get the CARTO maps back, request a free non-commercial key at https://carto.com/basemaps/apikey/ and paste it into `CARTO_API_KEY` near the top of the script in `index.html`.
+CARTO's Positron / Dark Matter tiles require an API key since September 2026 (free for non-commercial use, 5 million tile requests a month: https://carto.com/basemaps/apikey/). The key lives in `CARTO_API_KEY` near the top of the script in `index.html`. Like any basemap key it is visible to visitors, so restrict it to this site's domains in the CARTO dashboard if you want to protect the quota. If the key is empty, or CARTO rejects it (quota spent, key revoked, origin not allowed), the Light and Dark layers fall back automatically to Esri's gray canvas (crisp up to zoom 16).
 
 Other layers: Streets (OpenStreetMap), B&W (MapTiler Toner, key in `index.html`), Satellite (Esri World Imagery).
 

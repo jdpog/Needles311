@@ -446,7 +446,7 @@
 		// required a key since September 2026. A free key for non-commercial use
 		// is available at https://carto.com/basemaps/apikey/ . With no key, the
 		// Light and Dark layers use Esri's gray canvas instead (crisp to zoom 16).
-		const CARTO_API_KEY = '';
+		const CARTO_API_KEY = 'cb1_4xw8_1_4b2c44c803e5f4707bc6b022';
 		const MAPTILER_KEY = 'XyTvOTvEcdEh8fz4uDpw';
 
 		const DEFAULT_CENTER = [42.32995, -71.11142]; // near South Huntington Ave
@@ -703,24 +703,41 @@
 				`https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`,
 				Object.assign({ maxZoom: 19, attribution: 'Tiles &copy; Esri' }, opts || {})
 			);
+			const esriGray = (tone) => L.layerGroup([
+				esri(`Canvas/World_${tone}_Gray_Base`, { maxNativeZoom: 16 }),
+				esri(`Canvas/World_${tone}_Gray_Reference`, { maxNativeZoom: 16, attribution: '' })
+			]);
 			let light, dark;
 			if (CARTO_API_KEY) {
 				const cartoAttr = '&copy; <a href="https://carto.com/attributions">CARTO</a> ' + osmAttr;
-				const carto = (style) => L.tileLayer(
-					`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(CARTO_API_KEY)}`,
-					{ subdomains: 'abcd', maxZoom: 20, attribution: cartoAttr }
-				);
-				light = carto('light_all');
-				dark = carto('dark_all');
+				// CARTO answers with errors instead of tiles when it rejects the key
+				// (monthly quota spent, key revoked or restricted to other origins).
+				// Rather than leave the map blank, swap the layer for Esri's gray canvas.
+				let cartoRejected = false;
+				const cartoOrEsri = (style, tone) => {
+					const carto = L.tileLayer(
+						`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(CARTO_API_KEY)}`,
+						{ subdomains: 'abcd', maxZoom: 20, attribution: cartoAttr }
+					);
+					const group = L.layerGroup([carto]);
+					let errors = 0;
+					const swap = () => {
+						if (!group.hasLayer(carto)) return;
+						cartoRejected = true;
+						console.warn(`CARTO ${style} tiles failed to load; using Esri ${tone} Gray instead.`);
+						group.clearLayers();
+						group.addLayer(esriGray(tone));
+					};
+					carto.on('load', () => { errors = 0; });
+					carto.on('tileerror', () => { if (++errors >= 3) setTimeout(swap, 0); });
+					group.on('add', () => { if (cartoRejected) setTimeout(swap, 0); });
+					return group;
+				};
+				light = cartoOrEsri('light_all', 'Light');
+				dark = cartoOrEsri('dark_all', 'Dark');
 			} else {
-				light = L.layerGroup([
-					esri('Canvas/World_Light_Gray_Base', { maxNativeZoom: 16 }),
-					esri('Canvas/World_Light_Gray_Reference', { maxNativeZoom: 16, attribution: '' })
-				]);
-				dark = L.layerGroup([
-					esri('Canvas/World_Dark_Gray_Base', { maxNativeZoom: 16 }),
-					esri('Canvas/World_Dark_Gray_Reference', { maxNativeZoom: 16, attribution: '' })
-				]);
+				light = esriGray('Light');
+				dark = esriGray('Dark');
 			}
 			const streets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: osmAttr });
 			const bw = L.tileLayer(`https://api.maptiler.com/maps/toner-v2/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`, {
