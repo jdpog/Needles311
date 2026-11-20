@@ -7,7 +7,15 @@ import os
 from datetime import datetime, timedelta
 
 # API parameters
-SERVICE_CODE   = "Mayor's 24 Hour Hotline:Needle Program:Needle Pickup"
+#
+# Boston replaced its 311 system in September 2026. Reports filed before the
+# switch are only returned under the legacy service code; reports filed after
+# it (from 2026-09-10 on) only under the new one. Both are fetched, each from
+# the first date worth querying.
+SERVICES = [
+    ("Mayor's 24 Hour Hotline:Needle Program:Needle Pickup", datetime(2015, 1, 1)),  # legacy system
+    ("d29084c4-45ef-42a7-b431-e0d8e5e773c3",                 datetime(2026, 9, 1)),  # "Needle Pickup" in the new system
+]
 API_ENDPOINT   = "https://311.boston.gov/open311/v2/requests.json"
 PER_PAGE       = 100          # Maximum allowed per request
 SLEEP_SECONDS  = 8            # Pause between API calls (<10/minute)
@@ -15,9 +23,9 @@ SLEEP_SECONDS  = 8            # Pause between API calls (<10/minute)
 # User-Agent header
 HEADERS = {"User-Agent": "BostonNeedleReportsDownloader/1.0"}
 
-def fetch_reports_for_date_range(start_date_param, end_date_param, page=1):
+def fetch_reports_for_date_range(service_code, start_date_param, end_date_param, page=1):
     params = {
-        "service_code": SERVICE_CODE,
+        "service_code": service_code,
         "per_page": PER_PAGE,
         "page": page,
         "start_date": start_date_param,
@@ -37,11 +45,11 @@ def fetch_reports_for_date_range(start_date_param, end_date_param, page=1):
         records = data if isinstance(data, list) else []
     return records
 
-def fetch_reports_for_range(start_date_param, end_date_param):
+def fetch_reports_for_range(service_code, start_date_param, end_date_param):
     all = []
     page = 1
     while True:
-        batch = fetch_reports_for_date_range(start_date_param, end_date_param, page=page)
+        batch = fetch_reports_for_date_range(service_code, start_date_param, end_date_param, page=page)
         print(f"  → fetched {len(batch)} records on page {page}")
         if not batch:
             break
@@ -53,24 +61,35 @@ def fetch_reports_for_range(start_date_param, end_date_param):
     return all
 
 def main():
-    overall_start = datetime(2015, 1, 1)
-    overall_end   = datetime.now()
-    print(f"Fetching reports {overall_start.isoformat()} → {overall_end.isoformat()}")
-
+    overall_end    = datetime.now()
     interval_delta = timedelta(days=90)
-    current_start  = overall_start
     raw_reports    = []
+    seen_ids       = set()
 
-    while current_start < overall_end:
-        current_end = min(current_start + interval_delta, overall_end)
-        start_str   = current_start.isoformat() + "Z"
-        end_str     = current_end.isoformat()   + "Z"
-        print(f"\nInterval {start_str} → {end_str}")
-        batch = fetch_reports_for_range(start_str, end_str)
-        raw_reports.extend(batch)
-        print(f" Interval total: {len(batch)} records")
-        current_start = current_end
-        time.sleep(SLEEP_SECONDS)
+    for service_code, overall_start in SERVICES:
+        print(f"\n=== Service code {service_code!r}: {overall_start.isoformat()} → {overall_end.isoformat()}")
+        current_start = overall_start
+
+        while current_start < overall_end:
+            current_end = min(current_start + interval_delta, overall_end)
+            start_str   = current_start.isoformat() + "Z"
+            end_str     = current_end.isoformat()   + "Z"
+            print(f"\nInterval {start_str} → {end_str}")
+            batch = fetch_reports_for_range(service_code, start_str, end_str)
+            added = 0
+            for r in batch:
+                # Consecutive intervals share a boundary instant, so a report
+                # can come back twice; keep the first copy.
+                rid = r.get("service_request_id")
+                if rid:
+                    if rid in seen_ids:
+                        continue
+                    seen_ids.add(rid)
+                raw_reports.append(r)
+                added += 1
+            print(f" Interval total: {len(batch)} records ({added} new)")
+            current_start = current_end
+            time.sleep(SLEEP_SECONDS)
 
     print(f"\nTotal raw reports fetched: {len(raw_reports)}")
 

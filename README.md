@@ -6,7 +6,7 @@ Live site: https://needles311.surge.sh (also deployed to GitHub Pages).
 
 ## How it works
 
-- `data/callAPI.py` pulls every "Needle Pickup" request from the Boston 311 Open311 API and writes `data/reports.json`. A GitHub Actions workflow (`.github/workflows/callAPI.yml`) runs it daily.
+- `data/callAPI.py` pulls every "Needle Pickup" request from the Boston 311 Open311 API and writes `data/reports.json`. Boston switched 311 systems in September 2026, so it queries both the legacy service code (reports up to 2026-09-09) and the current one (`SERVICES` at the top of the script). A GitHub Actions workflow (`.github/workflows/callAPI.yml`) runs it daily.
 - `data/compact.py` then derives two small files the website actually loads:
   - `data/reports.core.json` – times, coordinates and addresses as compact columns (about 1 MB gzipped).
   - `data/reports.text.json` – descriptions and photo URLs, fetched in the background after the map is already interactive.
