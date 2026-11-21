@@ -673977,11 +673977,83 @@
   },
   {
     "description": "",
+    "requested_datetime": "2026-11-21T00:04:32Z",
+    "address": "E Lenox St & Reed St",
+    "lat": 42.334074,
+    "long": -71.077563,
+    "media_url": ""
+  },
+  {
+    "description": "Needle pickup",
+    "requested_datetime": "2026-11-20T23:52:13Z",
+    "address": "789-797 Harrison Ave, Boston, MA 02118",
+    "lat": 42.33614754,
+    "long": -71.07396875,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795218729/qjvb1rdnyk4ixlx7sbuo.jpg"
+  },
+  {
+    "description": "needle",
+    "requested_datetime": "2026-11-20T22:42:31Z",
+    "address": "Deacon St & Worcester St",
+    "lat": 42.33786111,
+    "long": -71.07609167,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795214546/s54bhybufq59igzrjss1.jpg"
+  },
+  {
+    "description": "needle in the middle of the sidewalk. safe. ",
+    "requested_datetime": "2026-11-20T22:51:06Z",
+    "address": "860 Harrison Ave, Boston, MA 02118",
+    "lat": 42.33470932,
+    "long": -71.0751335,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795215062/apc9d8e34wlrw6xita7p.jpg"
+  },
+  {
+    "description": "needle - parking garage staiwell",
+    "requested_datetime": "2026-11-20T21:13:46Z",
+    "address": "64 E Brookline St, Boston, MA 02118",
+    "lat": 42.33794236,
+    "long": -71.0706532,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_748,w_364//l_v1795209218:xdbkzqrbfezaxgysrqx0/c_limit,h_748,w_364/fl_layer_apply,g_north_west,x_394/v1795209218/njvasmlascjsiovxmigy.jpg"
+  },
+  {
+    "description": "needle on sidewalk corner of camden & tremont on odd side",
+    "requested_datetime": "2026-11-20T21:00:23Z",
+    "address": "Camden St & Tremont St",
+    "lat": 42.338583,
+    "long": -71.0820194,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795208418/aulkzhf5rgnttwzwttdq.jpg"
+  },
+  {
+    "description": "",
+    "requested_datetime": "2026-11-20T19:24:37Z",
+    "address": "764-776 Blue Hill Ave, Boston, MA 02124",
+    "lat": 42.298488,
+    "long": -71.086536,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795214329/vpvojywoki2a75jor6pi.jpg"
+  },
+  {
+    "description": "",
     "requested_datetime": "2026-11-20T18:21:42Z",
     "address": "Massachusetts Ave & Saint Botolph St",
     "lat": 42.342192,
     "long": -71.08407,
     "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795202176/fhohycx8dhz9ftuzs9jo.jpg"
+  },
+  {
+    "description": "Needles and caps at Carlton Court dog park around the corner at canine Vista bench overlooking dog park ",
+    "requested_datetime": "2026-11-20T18:22:47Z",
+    "address": "Carleton St & Private Alley No. 544",
+    "lat": 42.34555833,
+    "long": -71.0784445,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_364,w_236//l_v1795198961:k0f89vedxpbm6w2xxan3/c_limit,h_364,w_236/fl_layer_apply,g_north_west,x_266/l_v1795198962:m9wd7fhyflgkpz9w2gor/c_limit,h_364,w_236/fl_layer_apply,g_north_west,x_522/l_v1795202085:hhdcaw6ft9ggbbqxauga/c_limit,h_364,w_236/fl_layer_apply,g_north_west,x_0,y_394/v1795198958/mdqg7ziirw0rt9uvkjh4.jpg"
+  },
+  {
+    "description": "Crap load of needed next and isnside park trash can to and on sidewalk ",
+    "requested_datetime": "2026-11-20T18:05:29Z",
+    "address": "528 Massachusetts Ave, Boston, MA 02118",
+    "lat": 42.3387117,
+    "long": -71.07947463,
+    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_748,w_236//l_v1795197923:agzc1n2njzhgcwmdbvau/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_266/l_v1795197924:db82moutbonljkodwqrj/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_522/v1795197921/iosvkz5an0qscj8vftef.jpg"
   },
   {
     "description": "There are two people injecting them with crack at Stoney brook orange line stop ",
@@ -674006,22 +674078,6 @@
     "lat": 42.27745319,
     "long": -71.09301433,
     "media_url": "https://spot-boston-res.cloudinary.com/image/upload/v1795194862/adnn1l8ucmmrfslvec9m.jpg"
-  },
-  {
-    "description": "Needles and caps at Carlton Court dog park around the corner at canine Vista bench overlooking dog park ",
-    "requested_datetime": "2026-11-20T18:22:47Z",
-    "address": "Carleton St & Private Alley No. 544",
-    "lat": 42.34555833,
-    "long": -71.0784445,
-    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_364,w_236//l_v1795198961:k0f89vedxpbm6w2xxan3/c_limit,h_364,w_236/fl_layer_apply,g_north_west,x_266/l_v1795198962:m9wd7fhyflgkpz9w2gor/c_limit,h_364,w_236/fl_layer_apply,g_north_west,x_522/l_v1795202085:hhdcaw6ft9ggbbqxauga/c_limit,h_364,w_236/fl_layer_apply,g_north_west,x_0,y_394/v1795198958/mdqg7ziirw0rt9uvkjh4.jpg"
-  },
-  {
-    "description": "Crap load of needed next and isnside park trash can to and on sidewalk ",
-    "requested_datetime": "2026-11-20T18:05:29Z",
-    "address": "528 Massachusetts Ave, Boston, MA 02118",
-    "lat": 42.3387117,
-    "long": -71.07947463,
-    "media_url": "https://spot-boston-res.cloudinary.com/image/upload/c_limit,h_748,w_236//l_v1795197923:agzc1n2njzhgcwmdbvau/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_266/l_v1795197924:db82moutbonljkodwqrj/c_limit,h_748,w_236/fl_layer_apply,g_north_west,x_522/v1795197921/iosvkz5an0qscj8vftef.jpg"
   },
   {
     "description": "He’ll pick up + food waste",
